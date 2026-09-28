@@ -2,6 +2,7 @@ import { ref, shallowReactive } from '@common/utils/vueTools'
 import { useRouter } from '@common/utils/vueRouter'
 import { clipboardWriteText, openUrl } from '@common/utils/electron'
 import { toOldMusicInfo } from '@common/utils/tools'
+import { setShowPlayerDetail } from '@renderer/store/player/action'
 import { canJumpToAlbum, canJumpToSinger, canShareMusic, getAlbumMid, getSongMid, resolveSingers, type JumpSinger } from '@common/utils/musicLink'
 import music from '@renderer/utils/musicSdk'
 import { dialog } from '@renderer/plugins/Dialog'
@@ -21,8 +22,19 @@ export default () => {
   const router = useRouter()
   const t = useI18n()
 
-  const toAlbum = (mid: string) => router.push({ path: '/album', query: { mid } })
-  const toSinger = (mid: string) => router.push({ path: '/singer', query: { mid } })
+  // 播放详情页是盖在路由之上的全屏覆盖层（z-index 10）：不先收起来，push 只是把页面换在
+  // 底下，用户看到的是「歌手页/专辑页被播放页盖住」（2026-09-28 报）。收在这三处原语里而不是
+  // 各调用方：它们是所有真实 push 的必经点（多歌手菜单挑完也走 toSinger），而弹菜单、弹失败
+  // 提示这些不 push 的路径就不该收——菜单还要弹在详情页上。守卫不通过的路径同样不收。
+  // 详情页本来就关着时（歌曲表 / 列表页等入口）再收一次是幂等的，无害。
+  const toAlbum = (mid: string) => {
+    setShowPlayerDetail(false)
+    router.push({ path: '/album', query: { mid } })
+  }
+  const toSinger = (mid: string) => {
+    setShowPlayerDetail(false)
+    router.push({ path: '/singer', query: { mid } })
+  }
 
   /**
    * 「歌曲详情」：进本仓的歌曲详情页 `/songDetail`（**不是 QQ 网页**）。
@@ -38,6 +50,7 @@ export default () => {
     if (!minfo || minfo.source == 'local') return
     const mid = minfo.meta?.songId
     if (!mid) return
+    setShowPlayerDetail(false)
     router.push({ path: '/songDetail', query: { source: minfo.source, mid } })
   }
 
