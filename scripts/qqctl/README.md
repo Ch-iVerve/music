@@ -24,6 +24,8 @@ node scripts/qqctl/bin.mjs playlist songs 9782416691
 | `playlist add <ref> --song <songId[:songType]>…` | 直加（`--song 769125` 或 `--song 769125:13`，可逗号分隔/多 flag；`--batch` 批大小） |
 | `playlist remove <ref> --song …` | 移歌（同参数；回滚通道） |
 | `playlist add-matched <ref> --spec <文件> [--dry-run]` | 批量「歌手 - 歌名」：搜+打分+去重+分批加+**回读校验** |
+| `playlist backup <ref> --dir <目录>` | 备份歌单：JSON（原始行全量，恢复的输入）+ MD 可读表（表首自带恢复命令） |
+| `playlist restore <ref> --from <备份.json> [--yes] [--force]` | **受控重建**：删光现单 → 按备份顺序重加 → 回读逐位比对。`--dry-run` 出计划；备份后新加的歌要 `--force` 才会删 |
 
 所有命令支持 `--json`（stdout 单行 JSON，人读日志走 stderr）、`--profile prod|dev`（数据目录，默认 prod）、`--throttle <ms>`（节流，默认 400）。
 
@@ -33,6 +35,13 @@ node scripts/qqctl/bin.mjs playlist songs 9782416691
 - **两段式**：先 `--dry-run` 出计划（低置信列候选，exit 3）；人工核对后可把定案写成 spec 或改用 `playlist add` 直加。
 - **闭环**：写接口判读「模块 code 与 retCode 双 0 才算成功」（防 80105 假成功），写完**回读歌单逐 songId 校验**，有失败/缺失 exit 2。
 - spec 文件：每行 `歌手 - 歌名`（第一个 ` - ` 分隔），`#` 注释与空行跳过。
+
+## 备份/恢复与歌单顺序语义（2026-09-28 临时歌单受控实验）
+
+- **读序 = 加序倒序**：CgiGetDiss 读出的顺序里，越新加入的歌越靠前；整批 `AddSonglist` 时批内数组按倒序落位（`[A,B,C]` → 读出 `[C,B,A]`）。两条实验记录都钉在 `lib/sequence.test.mjs`。
+- 因此**目标读序 F 要按 `reverse(F)` 分批加入**（`restore` 内部就是这么做的，最后回读逐位比对，不符 exit 2）。
+- **重排一个歌单 = backup → 生成新顺序的规格文件（`songId:type` 每行一个，按目标读序）→ `restore --from`**。恢复是幂等的：中途失败重跑即可（先删光再重加）。
+- 想加专用「整单重排」端点前先看 `AdjustSonglist`（`music.musicasset.PlaylistDetailWrite` 下确认存在，2026-09-28 六种参数形状未命中，见 `/tmp/life-playlist/` 的探测脚本）。
 
 ## 维护约束（改之前读）
 

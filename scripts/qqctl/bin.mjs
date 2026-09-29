@@ -15,6 +15,11 @@
  *   playlist add <tid|dirId|名称> --song <songId[:songType]>... [--batch 10]
  *   playlist remove <tid|dirId|名称> --song <songId[:songType]>...
  *   playlist add-matched <tid|dirId|名称> --spec <文件> [--dry-run]
+ *   playlist backup <tid|dirId|名称> --dir <目录>
+ *                                    备份歌单：JSON（CgiGetDiss 原始行全量）+ MD 可读表
+ *   playlist restore <tid|dirId|名称> --from <备份.json> [--yes] [--force]
+ *                                    删光歌单后按备份顺序重加（危险，--yes 必须显式；
+ *                                    备份之后新加的歌要 --force 才会删）
  *
  * add-matched 的 spec 文件：每行「歌手 - 歌名」（第一个 " - " 分隔），# 注释与空行跳过。
  * 流程 = 逐条搜索打分（歌名×歌手全等/含）→ 歌单内 songId 去重 → 高置信进计划；
@@ -24,6 +29,8 @@
  * 安全纪律：凭证只在内存；任何输出不含凭证值；写操作不自动重试；对 QQ 侧低频
  * （搜索间 400ms、写批间 600ms，--throttle 可调）。不做对抗性设计。
  */
+import fs from 'node:fs'
+import path from 'node:path'
 import { loadCredential, describeCredential } from './lib/credential.mjs'
 import { search, pickBest, parseSearchType, singerNames } from './lib/search.mjs'
 import {
@@ -35,6 +42,8 @@ import {
   parseSongSpec,
   writeSongs,
 } from './lib/playlist.mjs'
+import { backupMarkdown, localStamp, safeFileName, specsFromBackup } from './lib/backup.mjs'
+import { diffSongSets, firstSequenceMismatch, reverseForAdd, songKey } from './lib/sequence.mjs'
 
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 
@@ -172,7 +181,7 @@ const cmdPlaylistWrite = async({ positional, flags }, method, verb) => {
   const missing = songs.filter(song => (verb === 'add' ? !have.has(Number(song.songId)) : have.has(Number(song.songId))))
   missing.forEach(song => log(`  ✗ 回读缺: ${song.songId}:${song.songType}`))
   const ok = batches.every(b => b.ok) && !missing.length
-  emit({ ok, summary: `${verb} ${songs.length} 首 → ${ok ? '全部在单' : '有失败/缺失'}`, playlist: row, batches, missing })
+  emit({ ok, summary: `${verb} ${songs.length} 首 → ${ok ? (verb === 'add' ? '全部在单' : '全部移除') : '有失败/缺失'}`, playlist: row, batches, missing })
   if (!ok) process.exitCode = 2
 }
 
@@ -233,6 +242,73 @@ const cmdAddMatched = async({ positional, flags }) => {
   if (!ok) process.exitCode = 2
 }
 
+const cmdPlaylistBackup = async({ positional, flags }) => {
+  if (!positional[0]) throw new Error('用法: playlist backup <tid|dirId|名称> --dir <目录>')
+  const credential = requireCredential(flags)
+  const row = resolvePlaylist(await listPlaylists(credential), positional[0])
+  const songs = await getPlaylistSongs(credential, row.tid)
+  const dir = String(flags.dir ?? '.')
+  fs.mkdirSync(dir, { recursive: true })
+  const base = `${safeFileName(row.name)}-backup-${localStamp().slice(0, 10)}`
+  const jsonPath = path.join(dir, `${base}.json`)
+  const mdPath = path.join(dir, `${base}.md`)
+  const exportedAt = new Date().toISOString()
+  fs.writeFileSync(jsonPath, JSON.stringify({ source: 'qqctl playlist backup', exportedAt, playlist: row, count: songs.length, songs }, null, 1))
+  fs.writeFileSync(mdPath, backupMarkdown({ playlist: row, exportedAt, songs }))
+  log(`  ✓ JSON ${jsonPath}`)
+  log(`  ✓ MD   ${mdPath}`)
+  emit({ ok: true, summary: `${row.name}: ${songs.length} 首 → ${jsonPath}`, jsonPath, mdPath, count: songs.length, playlist: row })
+}
+
+/**
+ * 恢复 = 受控重建：删光现单 → 按 reverse(备份读序) 分批重加 → 回读逐位比对。
+ * 顺序语义（读序 = 加序倒序）见 lib/sequence.mjs，有单测钉住。
+ */
+const cmdPlaylistRestore = async({ positional, flags }) => {
+  if (!positional[0] || !flags.from) throw new Error('用法: playlist restore <tid|dirId|名称> --from <备份.json> [--yes] [--force] [--batch 10]')
+  const credential = requireCredential(flags)
+  const row = resolvePlaylist(await listPlaylists(credential), positional[0])
+  const specs = specsFromBackup(JSON.parse(fs.readFileSync(String(flags.from), 'utf8')))
+  const current = await getPlaylistSongs(credential, row.tid)
+  const currentSpecs = current.map(item => ({ songId: item.id, songType: item.type ?? 0 }))
+  const { onlyCurrent, onlyBackup } = diffSongSets(currentSpecs, specs)
+  log(`  当前 ${currentSpecs.length} 首，备份 ${specs.length} 首；备份后新加 ${onlyCurrent.length}，备份有而现单无 ${onlyBackup.length}`)
+  if (flags['dry-run']) {
+    emit({ ok: true, summary: `dry-run: 将删光「${row.name}」后按备份顺序重加 ${specs.length} 首`, playlist: row, onlyCurrent, onlyBackup })
+    return
+  }
+  if (onlyCurrent.length && !flags.force) {
+    throw new Error(`歌单里有 ${onlyCurrent.length} 首备份中没有的歌（前 5：${onlyCurrent.slice(0, 5).join('、')}）——恢复会删掉它们，确认请加 --force`)
+  }
+  if (!flags.yes) throw new Error('恢复会删光歌单再按备份顺序重加，必须显式 --yes')
+  const batch = Number(flags.batch ?? 10)
+  const removed = await writeBatches(credential, 'DelSonglist', row, currentSpecs, batch, 'remove')
+  if (!removed.every(item => item.ok)) {
+    emit({ ok: false, summary: '删除批次有失败，未开始重加（重跑本命令可续）', playlist: row, removed })
+    process.exitCode = 2
+    return
+  }
+  const remain = (await getPlaylistSongs(credential, row.tid)).length
+  if (remain) {
+    emit({ ok: false, summary: `删后仍剩 ${remain} 首，停止重加（重跑本命令会再删一次）`, playlist: row })
+    process.exitCode = 2
+    return
+  }
+  const added = await writeBatches(credential, 'AddSonglist', row, reverseForAdd(specs), batch, 'add')
+  if (!added.every(item => item.ok)) {
+    emit({ ok: false, summary: '重加批次有失败（重跑本命令可续）', playlist: row, added })
+    process.exitCode = 2
+    return
+  }
+  const final = (await getPlaylistSongs(credential, row.tid)).map(item => songKey({ songId: item.id, songType: item.type }))
+  const target = specs.map(songKey)
+  const at = firstSequenceMismatch(final, target)
+  const ok = at < 0
+  if (!ok) log(`  ✗ 序列不符 @${at + 1}: 期望 ${target[at]}，实际 ${final[at] ?? '（缺）'}`)
+  emit({ ok, summary: `恢复 ${specs.length} 首 → ${ok ? '顺序逐位一致' : `第 ${at + 1} 位起不符`}`, playlist: row, count: final.length })
+  if (!ok) process.exitCode = 2
+}
+
 // ── 分发 ────────────────────────────────────────────────────────────────
 
 const COMMANDS = {
@@ -247,7 +323,9 @@ const COMMANDS = {
     if (sub === 'add') return cmdPlaylistWrite(ctx, 'AddSonglist', 'add')
     if (sub === 'remove') return cmdPlaylistWrite(ctx, 'DelSonglist', 'remove')
     if (sub === 'add-matched') return cmdAddMatched(ctx)
-    throw new Error('用法: playlist list|songs|create|delete|add|remove|add-matched …')
+    if (sub === 'backup') return cmdPlaylistBackup(ctx)
+    if (sub === 'restore') return cmdPlaylistRestore(ctx)
+    throw new Error('用法: playlist list|songs|create|delete|add|remove|add-matched|backup|restore …')
   },
 }
 
