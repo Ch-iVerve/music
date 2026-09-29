@@ -80,13 +80,18 @@ export const search = async(query, { type = 'song', num = 20 } = {}) => {
   return { list: shapeTyped(typeKey, list), total: Number(node.data?.meta?.estimate_sum ?? node.data?.meta?.sum ?? list.length) }
 }
 
+/** 专辑名含这些痕迹 = 现场/综艺版嫌疑（2026-09-29 实战：乐夏版抢了录音室版的搜索首位）。 */
+export const LIVE_ALBUM_RE = /乐队的夏天|歌手\s?20|现场|演唱会|Live|live|我们的歌|闪光的|天赐|披荆|时光|第\s?\d+\s?期/
+
 /**
  * 「歌手 - 歌名」匹配打分（2026-09-28 大运河音乐节实战沉淀）。吃 **search() 的整形行**
  * （songId/song/singer/album）——别再喂原始网关行：整形行没有 name/singer[]，重整形会
  * 全部判空（2026-09-28 冒烟撞过，症状是「歌手对、歌名空、分数骤降」）。
  *
- * score = [歌名全等2|含1]×10 + [歌手全等2|含1]；**≥22 才高置信**——21 分几乎都是「歌手名带
- * 乐队后缀」（二手玫瑰乐队/盘尼西林乐队）这类人工可确认但机器不敢单独拍板的形态，宁可交人工。
+ * score = [歌名全等2|含1]×10 + [歌手全等2|含1] - [专辑是现场/综艺版 5]；
+ * **≥22 才高置信**——21 分几乎都是「歌手名带乐队后缀」（二手玫瑰乐队/盘尼西林乐队）这类
+ * 人工可确认但机器不敢单独拍板的形态，宁可交人工。带正式专辑名的候选借降权输给 live 版
+ * 时会自然排到前面（「能用专辑要用专辑」是 2026-09-29 用户的明确要求）。
  * 候选按分数降序带前 5 条，给人工定案用。
  */
 export const pickBest = (rows, singer, song) => {
@@ -96,7 +101,11 @@ export const pickBest = (rows, singer, song) => {
     const nameContain = norm(row.song).includes(norm(song))
     const singerMatch = singers.some(n => norm(n) === norm(singer))
     const singerContain = singers.some(n => norm(n).includes(norm(singer)))
-    return { ...row, score: (nameMatch ? 2 : nameContain ? 1 : 0) * 10 + (singerMatch ? 2 : singerContain ? 1 : 0) }
+    const liveAlbum = LIVE_ALBUM_RE.test(String(row.album ?? ''))
+    return {
+      ...row,
+      score: (nameMatch ? 2 : nameContain ? 1 : 0) * 10 + (singerMatch ? 2 : singerContain ? 1 : 0) - (liveAlbum ? 5 : 0),
+    }
   })
   scored.sort((a, b) => b.score - a.score)
   const best = scored[0]

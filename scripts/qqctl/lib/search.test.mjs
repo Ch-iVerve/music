@@ -54,6 +54,22 @@ describe('pickBest 打分（2026-09-28 实战口径）', () => {
     expect(confident).toBe(false)
   })
 
+  it('现场/综艺专辑降权：正式专辑版排到 live 版前面（2026-09-29 用户要求「能用专辑要用专辑」）', () => {
+    const { best, candidates, confident } = pickBest([
+      row(1, 'New Boy', ['盘尼西林乐队'], 0, '乐队的夏天 第5期'),
+      row(2, 'New Boy', ['盘尼西林乐队'], 0, '群星闪耀时'),
+    ], '盘尼西林', 'New Boy')
+    expect(candidates[0].songId).toBe(2) // live 版 -5，正式版排前
+    expect(best.score).toBe(21)
+    expect(confident).toBe(false) // 乐队后缀照旧交人工——降权只管排序，不松置信阈值
+    const { confident: confident2, best: best2 } = pickBest([
+      row(1, '山雀', ['万能青年旅店'], 0, '乐队的夏天'),
+      row(2, '山雀', ['万能青年旅店'], 0, '冀西南林路行'),
+    ], '万能青年旅店', '山雀')
+    expect(confident2).toBe(true)
+    expect(best2.songId).toBe(2)
+  })
+
   it('候选按分数降序、最多 5 条；空列表给不出 best 且不高置信', () => {
     const { confident, best, candidates } = pickBest(
       [row(1, 'B', ['X']), row(2, 'A', ['万能青年旅店'], 0, undefined)],
