@@ -1,7 +1,8 @@
 import { computed, nextTick, ref, shallowRef, watch, type Ref } from '@common/utils/vueTools'
 import { useRoute, useRouter } from '@common/utils/vueRouter'
-import { createdLists, isInited, labels as userLabels } from '@renderer/store/user/state'
-import { createCloudList, initUserCenter, removeCloudList, uploadListCover } from '@renderer/store/user/action'
+import { createdLists, isInited, isLoading, labels as userLabels } from '@renderer/store/user/state'
+import { status } from '@renderer/store/qqAuth/state'
+import { createCloudList, initUserCenter, reloadCreatedLists, removeCloudList, uploadListCover } from '@renderer/store/user/action'
 import { dialog } from '@renderer/plugins/Dialog'
 import { useI18n } from '@renderer/plugins/i18n'
 import type { PlaylistCard } from '@renderer/store/user/state'
@@ -17,7 +18,11 @@ const I_LIKE_DIR_ID = '201'
  * 与原 `PlaylistRail.vue` 的云端半段一致：只放开已实现的能力（建 / 删），重命名、排序、
  * 导入导出不出现——点了没反应比没有更糟。加歌 / 删歌 / 刷新在右栏的 `CloudListPane`。
  *
- * 懒加载：本 hook 只在云端面板挂载时跑（`initUserCenter` 自带 isInited 守卫，一个会话一次）。
+ * 取数分两档（2026-09-29 用户报障：列表区整场会话不刷新）：会话没整包初始化过走
+ * `initUserCenter`（列表在里面）；初始化过就只重拉列表（`reloadCreatedLists`）——云端自建
+ * 歌单是**多端可变**的数据（手机 / 网页都能建、删），整包那份被 `isInited` 会话级守卫挡着，
+ * 不重拉的话本应用直到重启都看不到别端的改动。整包正在飞（isLoading）就交给在飞那轮，
+ * 不并发补拉。登录信号到达再整包 force 一轮（照 Favorites 各面板的 watch）。
  * 选中项写在 `route.query.cloud`（dirId），保留其它键——**`tab` 要显式带**（工单 02：
  * 归一可能发生在「切 tab 的导航还没落地」的窗口里，靠 `{ ...route.query }` 保留会把 tab 写丢）。
  */
@@ -26,7 +31,17 @@ export default ({ cloudDirId, tab }: { cloudDirId: Ref<string>, tab: Ref<TabId> 
   const route = useRoute()
   const t = useI18n()
 
-  void initUserCenter()
+  if (isInited.value && !isLoading.value) {
+    void reloadCreatedLists()
+  } else {
+    void initUserCenter()
+  }
+
+  // 登录信号到达就整包重拉（照 Favorites 各面板的 watch）：登录成功会 resetUserCenter 清掉
+  // 会话缓存，此时正停在本页的话不重拉就一直是空态。登出信号不动——数据已由清空兜底
+  watch(() => status.isLogin, (isLogin) => {
+    if (isLogin) void initUserCenter(true)
+  })
 
   const cloudLists = computed(() => createdLists.filter(item => item.dirId !== I_LIKE_DIR_ID))
   const cloudListsLabel = computed(() => userLabels.createdLists || t('no_item'))

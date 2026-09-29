@@ -3,7 +3,7 @@ import {
   cloudListSongs, createdLists, favAlbumIds, favAlbums, favLists, favPlaylistIds, favSongIds, favSongIdsLoaded, favSongs, followSingers, isInited, labels, musicGene, pagers, profile, vip,
 } from './state'
 import {
-  addFavSongToCloud, canFavSongInCloud, createCloudList, isFavSongInCloud, loadMoreFavAlbums, loadMoreFavLists, loadMoreFollowSingers, loadMoreFavSongs, removeCloudList, removeFavSongFromCloud, resetUserCenter, toggleFavSongToCloud,
+  addFavSongToCloud, canFavSongInCloud, createCloudList, isFavSongInCloud, loadMoreFavAlbums, loadMoreFavLists, loadMoreFollowSingers, loadMoreFavSongs, reloadCreatedLists, removeCloudList, removeFavSongFromCloud, resetUserCenter, toggleFavSongToCloud,
 } from './action'
 
 /**
@@ -554,5 +554,52 @@ describe('store/user/action 的 removeCloudList', () => {
     removeList.mockResolvedValue(false)
 
     await expect(removeCloudList({ dirId: 126, id: '978' } as any)).rejects.toThrow()
+  })
+})
+
+/**
+ * 云端自建歌单列表的**进页重拉**（2026-09-29 用户报障：左栏整场会话不刷新）。
+ *
+ * `initUserCenter` 被 `isInited` 会话级守卫挡着、只跑一次——云端自建歌单是**多端可变**的
+ * 数据（手机 / 网页上都能建、删），会话级缓存会让本应用直到重启都看不到别端的改动。
+ * `reloadCreatedLists` 是能重复调用的版本（对齐 `loadFavSongs` 的待遇），契约与其它
+ * 账号接口一致：失败只落文案（未登录落登录提示），不抛给调用方。
+ */
+describe('store/user/action 的 reloadCreatedLists', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    createdLists.splice(0, createdLists.length, { id: 'old' } as any)
+    labels.createdLists = ''
+  })
+
+  it('成功：拉取写回列表，文案从 loading 清空', async() => {
+    getCreatedSonglist.mockResolvedValue({ list: [{ id: 'new1' }, { id: 'new2' }] })
+
+    await reloadCreatedLists()
+
+    expect(getCreatedSonglist).toHaveBeenCalledTimes(1)
+    expect(createdLists.map(item => item.id)).toEqual(['new1', 'new2'])
+    expect(labels.createdLists).toBe('')
+  })
+
+  it('失败：落失败文案，不抛给调用方，旧列表保留', async() => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+    getCreatedSonglist.mockRejectedValue(new Error('boom'))
+
+    await expect(reloadCreatedLists()).resolves.toBeUndefined()
+
+    expect(labels.createdLists).toBe(loadFailedText())
+    expect(createdLists.map(item => item.id)).toEqual(['old'])
+    log.mockRestore()
+  })
+
+  it('未登录：落「请先登录」文案，不抛', async() => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+    getCreatedSonglist.mockRejectedValue(new Error('QQ 音乐未登录'))
+
+    await reloadCreatedLists()
+
+    expect(labels.createdLists).toBe(window.i18n.t('user_center__need_login' as any))
+    log.mockRestore()
   })
 })

@@ -145,10 +145,7 @@ export const initUserCenter = async(force = false): Promise<void> => {
       favSongs.total = res.total
       favSongs.page = 1
     }),
-    load('createdLists', async() => {
-      const res = await user().getCreatedSonglist()
-      setList(createdLists, res.list as any)
-    }),
+    load('createdLists', fetchCreatedLists),
     load('favLists', async() => {
       const res = await user().getFavSonglist(1, getPageSize(appSetting))
       setList(favLists, res.list as any)
@@ -396,10 +393,35 @@ export const loadMoreFollowSingers = async(): Promise<void> =>
 // 见 `tx/songList.js` 的注释）；写走 `createList / removeList / addSongToList / removeSongFromList`。
 // 写操作**失败必须抛给调用方**（用户主动发起的动作，静默失败会让人以为已经生效）。
 
-/** 重新拉云端自建歌单列表（建/删歌单之后刷新）。 */
-export const refreshCreatedLists = async(): Promise<void> => {
+/** 拉取并写回云端自建歌单列表（initUserCenter / refreshCreatedLists / reloadCreatedLists 共用的取数段）。 */
+const fetchCreatedLists = async(): Promise<void> => {
   const res = await user().getCreatedSonglist()
   setList(createdLists, res.list as any)
+}
+
+/** 重新拉云端自建歌单列表（建/删歌单之后刷新，best-effort：失败由调用方兜住）。 */
+export const refreshCreatedLists = async(): Promise<void> => {
+  await fetchCreatedLists()
+}
+
+/**
+ * 云端自建歌单列表的**进页重拉**（带文案，能重复调用）。
+ *
+ * 与 `initUserCenter` 里那份的区别：那个被 `isInited` 挡着、一个会话只跑一次；这个是给
+ * 「我的歌单」云端面板每次进入用的——云端自建歌单是**多端可变**的数据（手机 / 网页上都能
+ * 建、删），会话级缓存会让本应用直到重启都看不到别端的改动（2026-09-29 用户报障）。
+ * 待遇与 `loadFavSongs` 同档：进页拉一次，低频、节流。失败只落文案（未登录落登录提示），
+ * 不抛给调用方；落点 `labels.createdLists` 正是左栏与右栏空态读的那份，失败可见。
+ */
+export const reloadCreatedLists = async(): Promise<void> => {
+  labels.createdLists = t('list__loading')
+  try {
+    await fetchCreatedLists()
+    labels.createdLists = ''
+  } catch (err: any) {
+    console.log('[user] createdLists', err)
+    labels.createdLists = err?.message === 'QQ 音乐未登录' ? t('user_center__need_login') : t('list__load_failed')
+  }
 }
 
 /**
