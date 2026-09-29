@@ -68,7 +68,10 @@ const parseArgs = argv => {
       if (key === 'json' || key === 'yes' || key === 'dry-run') {
         flags[key] = true
       } else {
-        flags[key] = argv[++i]
+        // 重复 flag 收成数组（--song 1 --song 2），后值不许覆盖前值——2026-09-29 实战踩过：
+        // 5 个 --song 只剩最后一个，回读校验只验了 1 首还显示「全部在单」
+        const value = argv[++i]
+        flags[key] = key in flags ? [].concat(flags[key], value) : value
       }
     } else {
       positional.push(arg)
