@@ -7,9 +7,9 @@ transition(enter-active-class="animated slideInRight" leave-active-class="animat
     ControlBtnsLeftHeader(v-if="appSetting['common.controlBtnPosition'] == 'left'")
     ControlBtnsRightHeader(v-else)
     div(:class="[$style.main, {[$style.showComment]: isShowPlayComment}]")
-      div.left(:class="$style.left")
+      div.left(:class="[$style.left, { [$style.infoPageCenter]: isInfoPageCenter }]")
         //- div(:class="$style.info")
-        div(:class="[$style.info, { [$style.infoPageCenter]: isNoLyric && !isShowPlayComment }]")
+        div(:class="$style.info")
           img(v-if="musicInfo.pic" :class="$style.img" :src="musicInfo.pic")
           div.description(:class="['scroll', $style.description]")
             p {{ $t('player__music_name') }}{{ musicInfo.name }}
@@ -88,9 +88,10 @@ export default {
   setup() {
     const visibled = ref(false)
 
-    // 无歌词（含歌词加载失败）时歌曲信息块整页水平居中（用户 2026-10-07 反馈）。
+    // 无歌词（含歌词加载失败）时歌曲信息块整页水平居中；打开评论面板时退回左栏，避免块压在
+    // 评论面板上（用户 2026-10-07 反馈）。上留白的下移与此判据无关、对两种布局常驻（见 .left）。
     // 切歌会先走 stop() 以空歌词重建，lines 必然归零，这个判据覆盖切歌全程
-    const isNoLyric = computed(() => lyric.lines.length == 0)
+    const isInfoPageCenter = computed(() => lyric.lines.length == 0 && !isShowPlayComment.value)
     const router = useRouter()
 
     let clickTime = 0
@@ -175,7 +176,7 @@ export default {
       isShowPlayerDetail,
       isShowPlayComment,
       musicInfo,
-      isNoLyric,
+      isInfoPageCenter,
       hide,
       handleContextMenu,
       hideComment,
@@ -322,8 +323,31 @@ export default {
   flex-flow: column nowrap;
   align-items: center;
   padding: 13px;
+  // 「上留白 = 贴左布局时块的左留白」（用户 2026-10-07 反馈），**两种布局都生效**——
+  // 块下移由这里常驻完成，不随有无歌词变化：
+  // - 左留白 = 30 main 边距 + 13 padding + (0.44W − 26 − 400)/2。.container 内是 border-box，
+  //   flex-basis 44% 含左栏自身左右共 26px padding，居中发生在内容盒；13px 在「居中基准缩窄」
+  //   与「跨过 padding」两处相消 → 左留白 = 22%W − 170（块按 .info 400px 上限计）。
+  // - 上留白 = 头部(@height-toolbar) + 本 padding。令二者相等 → padding = calc(22% + 30px - 200px - @height-toolbar)。
+  // - 写在 .left 的 padding 而不是块的 top：top 的百分比按**高度**解析、引用不到页面宽度；
+  //   padding 百分比按包含块（.main）宽度解析。有歌词态块是流内内容、无歌词态块绝对定位
+  //   （top:auto 取内容盒顶），同一个 padding 对两种布局同时生效。
+  padding-top: calc(22% + 30px - 200px - @height-toolbar);
   overflow: hidden;
   transition: flex-basis @transition-normal;
+
+  // 无歌词态：块跨出 44% 左栏、整页水平居中。绝对定位锚到 .main（最近定位祖先）才能跨出左栏；
+  // .left 的 overflow:hidden 裁不到包含块在它之外的绝对定位后代。left/right 归零 + 水平 auto
+  // 边距 → 居中，宽度仍按 max-width:400px 收缩适配，top 不设值取静态位置（上留白与左布局一致）
+  &.infoPageCenter {
+    .info {
+      position: absolute;
+      left: 0;
+      right: 0;
+      margin-left: auto;
+      margin-right: auto;
+    }
+  }
 }
 
 .info {
@@ -333,17 +357,6 @@ export default {
   // 封面（.img 是 min-width:100%）与歌曲信息都受这个上限约束，300 → 400 让封面明显大一圈
   max-width: 400px;
   min-height: 0;
-}
-// 无歌词时整页水平居中（用户 2026-10-07 反馈）：绝对定位锚到 .main（最近的定位祖先）才能跨出
-// 44% 宽的左栏；.left 的 overflow:hidden 裁不到包含块在它之外的绝对定位后代。left/right 归零 +
-// 水平 auto 边距 → 居中，宽度仍按 max-width:400px 收缩适配。top 不设值取静态位置，垂直位置
-// 与有歌词时一致（用户只要水平居中）；打开评论面板时让位回左栏，避免盖在评论上
-.infoPageCenter {
-  position: absolute;
-  left: 0;
-  right: 0;
-  margin-left: auto;
-  margin-right: auto;
 }
 .img {
   max-width: 100%;
