@@ -9,7 +9,7 @@ transition(enter-active-class="animated slideInRight" leave-active-class="animat
     div(:class="[$style.main, {[$style.showComment]: isShowPlayComment}]")
       div.left(:class="$style.left")
         //- div(:class="$style.info")
-        div(:class="$style.info")
+        div(:class="[$style.info, { [$style.infoPageCenter]: isNoLyric && !isShowPlayComment }]")
           img(v-if="musicInfo.pic" :class="$style.img" :src="musicInfo.pic")
           div.description(:class="['scroll', $style.description]")
             p {{ $t('player__music_name') }}{{ musicInfo.name }}
@@ -51,8 +51,9 @@ transition(enter-active-class="animated slideInRight" leave-active-class="animat
 
 
 <script>
-import { ref, watch } from '@common/utils/vueTools'
+import { ref, computed, watch } from '@common/utils/vueTools'
 import { isFullscreen } from '@renderer/store'
+import { lyric } from '@renderer/store/player/lyric'
 import {
   isShowPlayerDetail,
   isShowPlayComment,
@@ -86,6 +87,10 @@ export default {
   },
   setup() {
     const visibled = ref(false)
+
+    // 无歌词（含歌词加载失败）时歌曲信息块整页水平居中（用户 2026-10-07 反馈）。
+    // 切歌会先走 stop() 以空歌词重建，lines 必然归零，这个判据覆盖切歌全程
+    const isNoLyric = computed(() => lyric.lines.length == 0)
     const router = useRouter()
 
     let clickTime = 0
@@ -170,6 +175,7 @@ export default {
       isShowPlayerDetail,
       isShowPlayComment,
       musicInfo,
+      isNoLyric,
       hide,
       handleContextMenu,
       hideComment,
@@ -327,6 +333,17 @@ export default {
   // 封面（.img 是 min-width:100%）与歌曲信息都受这个上限约束，300 → 400 让封面明显大一圈
   max-width: 400px;
   min-height: 0;
+}
+// 无歌词时整页水平居中（用户 2026-10-07 反馈）：绝对定位锚到 .main（最近的定位祖先）才能跨出
+// 44% 宽的左栏；.left 的 overflow:hidden 裁不到包含块在它之外的绝对定位后代。left/right 归零 +
+// 水平 auto 边距 → 居中，宽度仍按 max-width:400px 收缩适配。top 不设值取静态位置，垂直位置
+// 与有歌词时一致（用户只要水平居中）；打开评论面板时让位回左栏，避免盖在评论上
+.infoPageCenter {
+  position: absolute;
+  left: 0;
+  right: 0;
+  margin-left: auto;
+  margin-right: auto;
 }
 .img {
   max-width: 100%;
