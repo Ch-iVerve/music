@@ -170,20 +170,13 @@ export default ({ isPlay, lyric, playProgress, isShowLyricProgressSetting, offse
     })
   }
 
-  const initLrc = (lines, oLines) => {
+  const initLrc = (lines) => {
     isSetedLines = true
-    if (oLines) {
-      if (lines.length) {
-        setLyric(lines)
-      } else {
-        cancelScrollFn = scrollTo(dom_lyric.value, 0, 300, () => {
-          if (lyric.lines !== lines) return
-          setLyric(lines)
-        }, 50)
-      }
-    } else {
-      setLyric(lines)
-    }
+    // 一律立即整体替换（含清空），不做离场动画：从有歌词切到无歌词时，store 的 lines 已同步
+    // 清零、信息块随之整页居中，原来的「300ms 滚顶再清」会让旧歌词与居中的块重叠 ~350ms，
+    // 显得消失得不干脆（用户 2026-10-07 反馈）。清空后 scrollTop 随内容移除自动归零，滚顶无意义。
+    // 本组合函数唯一消费方是 PlayDetail 的 LyricPlayer.vue。
+    setLyric(lines)
   }
 
   let delayScrollTimeout
