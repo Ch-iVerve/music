@@ -364,11 +364,14 @@ export default {
   min-height: 0;
   // 对齐缓冲：切歌后歌词未落定（isAligning）先整块隐去，落定后在新位置淡入——
   // 「居中↔左侧」的换位发生在不可见期间，看不到跳变（用户 2026-10-09 反馈）。
-  // 取比 @transition-normal(.4s) 更短的 0.2s，「微」缓冲不抢戏；隐去时连同可点性一起收掉
+  // ⚠️ 隐去必须瞬时（transition: none）：若保留淡出，切歌帧位置已翻转而透明度还接近 1，
+  // 跳变照旧可见（2026-10-09 实测）。只保留淡入（.2s，比 @transition-normal 短，「微」缓冲）；
+  // 隐去时连同可点性一起收掉
   transition: opacity .2s ease;
   &.aligning {
     opacity: 0;
     pointer-events: none;
+    transition: none;
   }
 }
 .img {
