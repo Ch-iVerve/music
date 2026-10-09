@@ -461,6 +461,10 @@ export default {
       line-height: 1.2;
       opacity: .75;
       display: inline-block;
+      // 单元格是 flex 行且 white-space 被重置为 normal：不锁死的话，歌名一长
+      // 标签会被 flex 压缩到逐字换行（CJK 最小内容宽 = 一个字，竖排）
+      flex: none;
+      white-space: nowrap;
     }
   }
 }
