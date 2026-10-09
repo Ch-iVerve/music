@@ -32,13 +32,16 @@
                 :src="coverUrl(item)" alt=""
               >
               <span v-else :class="$style.coverEmpty">
-                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="20" height="20">
+                <!-- 本文件三处图标 svg 都必须带该符号自身的 viewBox：#icon-* 的 path 坐标系各异
+                     （1024 / 451.8 / 425.2），缺 viewBox 不缩放，墨迹整个画到视口外——
+                     悬停圆里「没有箭头」就是这个原因 -->
+                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 425.2 425.2">
                   <use xlink:href="#icon-album" />
                 </svg>
               </span>
               <!-- 歌曲行 hover 出播放钮：行点击即播的具象提示（专辑行不出——它点行是展开） -->
               <span v-if="item.kind === 'song'" :class="$style.coverPlay">
-                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="14" height="14">
+                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 1024 1024">
                   <use xlink:href="#icon-play" />
                 </svg>
               </span>
@@ -59,7 +62,7 @@
                   v-if="item.kind === 'album' && (albumSongsMap.get(item.id)?.length ?? 0) > 0"
                   :class="[$style.chevron, { [$style.chevronOpen]: isAlbumExpanded(item) }]"
                 >
-                  <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="14" height="14">
+                  <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 451.847 451.847">
                     <use xlink:href="#icon-down" />
                   </svg>
                 </span>
