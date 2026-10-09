@@ -63,6 +63,8 @@ declare namespace LX {
     deeplink?: string | null
     cmdParams: CmdParams
     workAreaSize?: Electron.Size
+    /** 本地媒体库的托管目录（`<userData>/media/`，主进程惰性创建；渲染侧不自行拼接 userData） */
+    mediaDir: string
   }
 
   interface HotKey {

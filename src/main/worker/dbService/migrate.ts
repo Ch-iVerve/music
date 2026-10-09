@@ -111,6 +111,18 @@ const migrateV4 = (db: Database.Database) => {
   }
 }
 
+/**
+ * v5 → v6：补本地媒体库的曲目表（`local_library_track`，票 01）。
+ *
+ * 同 `migrateV4` 的套路：新表、没有旧数据要搬，拿 `tables.get(...)` 的原样文本建表；
+ * 建表前判存在——版本号被回写（如从旧备份还原 config）会重跑本版，`CREATE TABLE`
+ * 撞上已存在的表会抛 SqliteError，让整个 `init` 失败（收成 `null` → 用户库被改名备份后重建空库）。
+ * 不初始化任何行：空曲目表 = 「还没导入过」，导入是渲染侧 worker 库服务（票 02）的事。
+ */
+const migrateV5 = (db: Database.Database) => {
+  if (!hasTable(db, 'local_library_track')) db.exec(tables.get('local_library_track')!)
+}
+
 /** 表是否存在（迁移里要按库的实际形态分流，不能假设某张表一定在）。 */
 const hasTable = (db: Database.Database, name: string) =>
   db.prepare('SELECT name FROM "main".sqlite_master WHERE type=\'table\' AND name=?').get(name) != null
@@ -165,6 +177,9 @@ export default (db: Database.Database) => {
       // eslint-disable-next-line no-fallthrough -- 同上
     case '4':
       migrateV4(db)
+      // eslint-disable-next-line no-fallthrough -- 同上
+    case '5':
+      migrateV5(db)
       break
     default:
       // 未知版本（比 DB_VERSION 新，或字段被写坏）：不动库、只留一条日志。

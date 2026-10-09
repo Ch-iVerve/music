@@ -115,6 +115,7 @@ type Tables = 'db_info'
 | 'dislike_list'
 | 'follow_feed_baseline'
 | 'follow_feed_item'
+| 'local_library_track'
 
 const tables = new Map<Tables, string>()
 
@@ -271,6 +272,36 @@ tables.set('follow_feed_item', `
     UNIQUE("kind","item_id")
   );
 `)
+/**
+ * 本地媒体库的曲目表（本地媒体库票 01）。
+ *
+ * 主键是**内容哈希**：同一份音频文件无论从哪里导入，库中永远只有一行（去重天然成立）；
+ * 文件本体托管在 `<userData>/media/` 下以同一哈希命名（`${id}.${ext}`），播放路径可由哈希推出。
+ * 歌词与封面正文本体全部内嵌在音频文件里（spec D2 零旁车），库行记「有无」标记（`has_pic`/`has_lyric`）；
+ * 年份/流派/音轨/碟号等 tag 的**展示值**缓存在库行（正文本体在文件内嵌），供列表展示与分组，不回读文件。
+ * 展示用的 `name`/`singer`/`album`/`interval` 与歌单条目（`my_list_music_info`）是**两份**：
+ * 编辑曲目时由 `modules/local_library` 在同一事务里同步更新引用行（引用行的 `id` 就是这里的哈希、
+ * `source='local'`），否则歌单里显示的是旧名字。
+ */
+tables.set('local_library_track', `
+  CREATE TABLE "local_library_track" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "singer" TEXT NOT NULL,
+    "album" TEXT,
+    "interval" TEXT,
+    "ext" TEXT NOT NULL,
+    "size" INTEGER NOT NULL,
+    "year" TEXT,
+    "genre" TEXT,
+    "track_num" TEXT,
+    "disc_num" TEXT,
+    "has_pic" INTEGER NOT NULL,
+    "has_lyric" INTEGER NOT NULL,
+    "imported_at" INTEGER NOT NULL,
+    PRIMARY KEY("id")
+  );
+`)
 
 export default tables
 
@@ -290,5 +321,7 @@ export default tables
  *   真删、不迁进「我的收藏」；表结构不变，只是清行）；
  * - 起始 `'4'`：补 `follow_feed_baseline` 与 `follow_feed_item` 两张表（关注动态票 02）；
  *   两张都是新表、没有旧数据要搬，所以只是建表。
+ * - 起始 `'5'`：补 `local_library_track` 表（本地媒体库票 01）；
+ *   新表、没有旧数据要搬，所以只是建表。
  */
-export const DB_VERSION = '5'
+export const DB_VERSION = '6'

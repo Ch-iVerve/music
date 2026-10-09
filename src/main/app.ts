@@ -10,6 +10,7 @@ import { createAppEvent, createDislikeEvent, createListEvent } from '@main/event
 import { isMac, log } from '@common/utils'
 import createWorkers from './worker'
 import { migrateDBData } from './utils/migrate'
+import { resolveMediaDir } from './utils/mediaDir'
 import { openDirInExplorer } from '@common/utils/electron'
 import { setProxyByHost } from '@common/utils/request'
 
@@ -20,6 +21,9 @@ export const initGlobalData = () => {
   global.envParams = {
     cmdParams: envParams.cmdParams,
     deeplink: envParams.deeplink,
+    // 本地媒体库托管目录（票 01）：只算路径不建目录（惰性创建见 mediaDir.ts）；
+    // 路径只在主进程拼装，渲染侧经 get_env_params 读取，写文件前由管线调 ensureMediaDir()
+    mediaDir: resolveMediaDir(),
   }
   global.lx = {
     inited: false,

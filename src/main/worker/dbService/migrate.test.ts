@@ -9,6 +9,7 @@ import { getDB, init } from './db'
 import verifyDB from './verifyDB'
 import { musicUrlCount, musicUrlRecycle, musicUrlRemove, musicUrlSave } from './modules/music_url'
 import { followFeedBaselineAll, followFeedItemsGet } from './modules/follow_feed'
+import { localLibraryAll, localLibraryCount } from './modules/local_library'
 
 /**
  * 旧库迁移实测（`dbService.init` 的硬要求，AGENTS §2.4 / 票 08 验收第一条）。
@@ -96,8 +97,8 @@ const createLegacyDb = (dir: string, version: '1' | '2') => {
   const file = dbFileOf(dir)
   const db = new Database(file)
   const sqls = Array.from(tables.entries())
-    // v1 的库缺 `dislike_list`（上游 v2.4.0 版本号遗留，`migrateV1` 就是补它）
-    .filter(([name]) => !(version == '1' && name == 'dislike_list'))
+    // v6 才有的表不能出现在旧夹具里（它当时还不存在）；v1 的库另缺 `dislike_list`（上游 v2.4.0 版本号遗留，`migrateV1` 就是补它）
+    .filter(([name]) => name != 'local_library_track' && !(version == '1' && name == 'dislike_list'))
     .map(([name, sql]) => name == 'music_url' ? LEGACY_MUSIC_URL_SQL : sql)
   db.exec(sqls.join('\n'))
   db.exec(`INSERT INTO "main"."db_info" ("field_name", "field_value") VALUES ('version', '${version}');`)
@@ -145,6 +146,16 @@ const readListOrderCounts = (file: string) => inspect(file, db => {
 const readUserListIds = (file: string) => inspect(file, db => (db
   .prepare('SELECT "id" FROM "main"."my_list" ORDER BY "position"')
   .all() as Array<{ id: string }>).map(row => row.id))
+/** 全部列表歌曲行（v5→v6 迁移的回读比对用：迁移只建新表，这份数据一个字段都不该动） */
+const readAllListMusics = (file: string) => inspect(file, db => db
+  .prepare('SELECT "id", "listId", "name", "singer", "source", "interval", "meta" FROM "main"."my_list_music_info" ORDER BY "listId", "id"')
+  .all())
+const readDislikeRows = (file: string) => inspect(file, db => db
+  .prepare('SELECT "type", "content", "meta" FROM "main"."dislike_list" ORDER BY "rowid"')
+  .all())
+const readDownloadRows = (file: string) => inspect(file, db => db
+  .prepare('SELECT "id", "isComplate", "status", "statusText", "progress_downloaded", "progress_total", "quality", "ext", "fileName", "position" FROM "main"."download_list" ORDER BY "rowid"')
+  .all())
 /** 去掉 `default` 那一档后的计数（迁移必须只动它） */
 const countsWithoutDefault = (counts: Record<string, number>) => Object.fromEntries(Object.entries(counts).filter(([listId]) => listId != 'default'))
 
@@ -180,7 +191,7 @@ describe('v2 → v5：`music_url` 加 `created_at`', () => {
   })
 
   it('版本号升到 DB_VERSION；别的表一行没动；没留下迁移用的临时表', () => {
-    expect(DB_VERSION).toBe('5')
+    expect(DB_VERSION).toBe('6')
     expect(readVersion(file)).toBe(DB_VERSION)
     expect(readLyricCount(file)).toBe(1)
     // 迁移中途改名出来的表必须收干净。`sqlite_stat*` 是 `init` 里 `PRAGMA optimize` 建的，不算数
@@ -191,6 +202,7 @@ describe('v2 → v5：`music_url` 加 `created_at`', () => {
       'download_list',
       'follow_feed_baseline',
       'follow_feed_item',
+      'local_library_track',
       'lyric',
       'music_info_other_source',
       'music_url',
@@ -262,7 +274,7 @@ describe('半迁移状态（列已在、定义与 `tables` 不同、版本号还
   })
 })
 
-describe('空目录（没有库文件）：新建的库直接是 v5 结构', () => {
+describe('空目录（没有库文件）：新建的库直接是 v6 结构', () => {
   let dir: string
   let file: string
 
@@ -364,7 +376,7 @@ const legacyFixture = (dir: string) => {
     return file
   }
   const db = new Database(file)
-  db.exec(Array.from(tables.values()).join('\n'))
+  db.exec(Array.from(tables.entries()).filter(([name]) => name != 'local_library_track').map(([, sql]) => sql).join('\n'))
   db.prepare('INSERT INTO "main"."db_info" ("field_name", "field_value") VALUES (?, ?)').run('version', '3')
   const insertUrl = db.prepare('INSERT INTO "main"."music_url" ("id", "url", "created_at") VALUES (?, ?, ?)')
   db.transaction(() => {
@@ -402,8 +414,8 @@ describe('旧库（合成件；设 CHIVERVE_LEGACY_DB 时用真库副本）：db
     console.log('[migrate.test] 迁移前列表行数：%s（my_list 里的自建列表：%s）',
       JSON.stringify(listCountsBefore), JSON.stringify(userListIdsBefore))
     // 前提：这份库确实是**比当前旧**的库。合成件固定是 `'3'`；真库副本随用户手上那份走
-    // （票 08 之后、关注动态票 02 之前是 `'4'`），所以这里只要求「旧于 DB_VERSION」。
-    expect(['3', '4']).toContain(versionBefore)
+    // （票 08 之后是 `'4'`、媒体库票 01 之后是 `'5'`），所以这里只要求「数值上旧于 DB_VERSION」。
+    expect(Number(versionBefore)).toBeLessThan(Number(DB_VERSION))
     expect(versionBefore).not.toBe(DB_VERSION)
     expect(columnsBefore).toEqual(['id', 'url', 'created_at'])
 
@@ -594,6 +606,76 @@ describe('v4 → v5：补关注动态两张表', () => {
     // 模拟「从旧备份还原了配置」把版本号带回 v4 的场景
     inspect(file, db => {
       db.prepare('UPDATE "main"."db_info" SET "field_value"=? WHERE "field_name"=?').run('4', 'version')
+    })
+    expect(init(dir)).toBe(true)
+    expect(verifyDB(getDB())).toBe(true)
+    expect(readVersion(file)).toBe(DB_VERSION)
+  })
+})
+
+/**
+ * v5 → v6（本地媒体库票 01）：补 `local_library_track` 表。
+ *
+ * 夹具形态 = 用户手上的 v5 库：其余表齐全、只差媒体库这一张。新表、没有旧数据要搬，
+ * 判据：`init` 返回 true、表按 `tables` 的定义建出来（`verifyDB` 逐字符校验会验）、
+ * 既有数据一行不少、曲目表**为空**（不预置任何行——空库 = 「还没导入过」，导入是票 02 的事）。
+ * 另钉一条幂等：版本号被回写成 `'5'` 时重跑不许因「表已存在」抛错
+ * （抛错会让 `init` 收成 `null` → 用户库被改名备份后重建空库）。
+ */
+describe('v5 → v6：补本地媒体库表', () => {
+  /** 造一份只差 `local_library_track` 的 v5 库（其余表全用当前定义，塞几行既有数据证明迁移没碰它们） */
+  const createV5Db = (dir: string) => {
+    const file = dbFileOf(dir)
+    const db = new Database(file)
+    db.exec(Array.from(tables.entries())
+      .filter(([name]) => name != 'local_library_track')
+      .map(([, sql]) => sql)
+      .join('\n'))
+    db.exec('INSERT INTO "main"."db_info" ("field_name", "field_value") VALUES (\'version\', \'5\');')
+    db.transaction(() => {
+      db.prepare('INSERT INTO "main"."my_list" ("id", "name", "source", "sourceListId", "position", "locationUpdateTime") VALUES (?, ?, ?, ?, ?, ?)')
+        .run('userlist_v5', 'v5 库里的自建列表', null, null, 0, 0)
+      insertLegacyListMusics(db, 'userlist_v5', ['v5s1', 'v5s2'])
+      db.prepare('INSERT INTO "main"."dislike_list" ("type", "content") VALUES (\'music\', ?)').run('v5 库里的不喜欢@singer')
+      db.prepare('INSERT INTO "main"."music_url" ("id", "url", "created_at") VALUES (?, ?, ?)').run('v5_128k', 'https://example.invalid/v5', 0)
+      db.prepare('INSERT INTO "main"."download_list" ("id", "isComplate", "status", "statusText", "progress_downloaded", "progress_total", "url", "quality", "ext", "fileName", "filePath", "musicInfo", "position") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+        .run('dl_v5', 1, 'done', '已完成', 100, 100, null, '128k', 'mp3', 'v5_song.mp3', '/downloads/v5_song.mp3', '{}', 0)
+    })()
+    db.close()
+    return file
+  }
+
+  it('init 返回 true；媒体库表建出来；旧数据逐行无损；曲目表为空', () => {
+    const dir = newCaseDir()
+    const file = createV5Db(dir)
+    expect(readTableNames(file)).not.toContain('local_library_track')
+    const listIdsBefore = readUserListIds(file)
+    const urlsBefore = readRows(file)
+    const listMusicsBefore = readAllListMusics(file)
+    const dislikesBefore = readDislikeRows(file)
+    const downloadsBefore = readDownloadRows(file)
+
+    expect(init(dir)).toBe(true)
+    expect(verifyDB(getDB())).toBe(true)
+    expect(readVersion(file)).toBe(DB_VERSION)
+    expect(readTableNames(file)).toContain('local_library_track')
+    // 迁移只建新表：既有四类数据逐行原样（在线歌单/收藏/不喜欢/下载）
+    expect(readUserListIds(file)).toEqual(listIdsBefore)
+    expect(readRows(file)).toEqual(urlsBefore)
+    expect(readAllListMusics(file)).toEqual(listMusicsBefore)
+    expect(readDislikeRows(file)).toEqual(dislikesBefore)
+    expect(readDownloadRows(file)).toEqual(downloadsBefore)
+    expect(localLibraryAll()).toEqual([])
+    expect(localLibraryCount()).toBe(0)
+  })
+
+  it('幂等：版本号被回写成 5 再跑一次不抛错（表已存在时不许 CREATE 硬撞）', () => {
+    const dir = newCaseDir()
+    const file = createV5Db(dir)
+    expect(init(dir)).toBe(true)
+    // 模拟「从旧备份还原了配置」把版本号带回 v5 的场景
+    inspect(file, db => {
+      db.prepare('UPDATE "main"."db_info" SET "field_value"=? WHERE "field_name"=?').run('5', 'version')
     })
     expect(init(dir)).toBe(true)
     expect(verifyDB(getDB())).toBe(true)
