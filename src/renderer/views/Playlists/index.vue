@@ -9,6 +9,9 @@
       <local-lists-panel v-if="tab === 'local'" :tab="tab" />
       <cloud-lists-panel v-else-if="tab === 'cloud'" :tab="tab" />
     </div>
+    <!-- 托管导入的进度/汇总弹窗（票 02）：状态在 core/localLibrary；挂在页面壳而不是本地面板——
+         面板被 tab 的 v-if 卸载时弹窗不能跟着消失（进行中的导入会失去取消入口） -->
+    <local-import-progress-modal />
   </div>
 </template>
 
@@ -18,6 +21,7 @@ import { useRouter, useRoute } from '@common/utils/vueRouter'
 import { type TabId, tabFromQuery, withTab } from './tabs'
 import LocalListsPanel from './components/LocalListsPanel.vue'
 import CloudListsPanel from './components/CloudListsPanel.vue'
+import LocalImportProgressModal from '@renderer/components/common/LocalImportProgressModal.vue'
 
 /**
  * 我的歌单（工单 09；默认 tab 与顺序见工单 07）：两个 tab——**QQ 音乐·歌单**（QQ 云端自建歌单）
@@ -48,6 +52,7 @@ export default {
   components: {
     LocalListsPanel,
     CloudListsPanel,
+    LocalImportProgressModal,
   },
   setup() {
     const router = useRouter()

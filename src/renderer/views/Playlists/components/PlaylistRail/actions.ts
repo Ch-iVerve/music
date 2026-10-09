@@ -1,15 +1,11 @@
-import { addListMusics, setFetchingListStatus } from '@renderer/store/list/action'
+import { setFetchingListStatus } from '@renderer/store/list/action'
 import { showSelectDialog } from '@renderer/utils/ipc'
+import { importLocalFilesToList } from '@renderer/core/localLibrary'
 
-
-const handleAddMusics = async(listId: string, filePaths: string[], index: number = -1) => {
-  // console.log(index + 1, index + 201)
-  const paths = filePaths.slice(index + 1, index + 201)
-  const musicInfos = await window.lx.worker.main.createLocalMusicInfos(paths)
-  if (musicInfos.length) await addListMusics(listId, musicInfos)
-  index += 200
-  if (filePaths.length - 1 > index) await handleAddMusics(listId, filePaths, index)
-}
+/**
+ * 右键「添加本地歌曲」（票 02 起为**托管导入**）：文件按内容哈希复制进媒体目录、写入曲目库，
+ * 再以库条目引用进当前歌单；进度/取消/汇总由 LocalImportProgressModal 展示（core/localLibrary 驱动）。
+ */
 export const addLocalFile = async(listInfo: LX.List.MyListInfo) => {
   const { canceled, filePaths } = await showSelectDialog({
     title: window.i18n.t('lists__add_local_file_desc'),
@@ -23,8 +19,10 @@ export const addLocalFile = async(listInfo: LX.List.MyListInfo) => {
   })
   if (canceled || !filePaths.length) return
 
-  console.log(filePaths)
   setFetchingListStatus(listInfo.id, true)
-  await handleAddMusics(listInfo.id, filePaths)
-  setFetchingListStatus(listInfo.id, false)
+  try {
+    await importLocalFilesToList(listInfo.id, filePaths)
+  } finally {
+    setFetchingListStatus(listInfo.id, false)
+  }
 }

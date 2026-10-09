@@ -187,6 +187,14 @@ const modules = {
     login_check: 'login_check',
     login_cancel: 'login_cancel',
   },
+  localLibrary: {
+    get_all: 'get_all',
+    add: 'add',
+    update: 'update',
+    remove: 'remove',
+    get_by_ids: 'get_by_ids',
+    count: 'count',
+  },
 }
 
 
@@ -213,3 +221,4 @@ export const WIN_MAIN_RENDERER_EVENT_NAME = modules.winMain
 export const WIN_LYRIC_RENDERER_EVENT_NAME = modules.winLyric
 export const HOTKEY_RENDERER_EVENT_NAME = modules.hotKey
 export const QQ_AUTH_EVENT_NAME = modules.qqAuth
+export const LOCAL_LIBRARY_EVENT_NAME = modules.localLibrary

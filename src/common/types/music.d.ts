@@ -25,6 +25,8 @@ declare namespace LX {
     interface MusicInfoMeta_local extends MusicInfoMetaBase {
       filePath: string
       ext: string
+      /** 引用的媒体库曲目哈希（票 02 起：新托管条目 id=哈希并带此字段；旧式直读路径条目没有） */
+      trackId?: string
     }
 
 

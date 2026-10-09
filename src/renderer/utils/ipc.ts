@@ -1,5 +1,5 @@
 import { rendererSend, rendererInvoke, rendererOn, rendererOff } from '@common/rendererIpc'
-import { HOTKEY_RENDERER_EVENT_NAME, WIN_MAIN_RENDERER_EVENT_NAME, CMMON_EVENT_NAME, QQ_AUTH_EVENT_NAME, FOLLOW_FEED_EVENT_NAME } from '@common/ipcNames'
+import { HOTKEY_RENDERER_EVENT_NAME, WIN_MAIN_RENDERER_EVENT_NAME, CMMON_EVENT_NAME, QQ_AUTH_EVENT_NAME, FOLLOW_FEED_EVENT_NAME, LOCAL_LIBRARY_EVENT_NAME } from '@common/ipcNames'
 import { markRaw } from '@common/utils/vueTools'
 import * as hotKeys from '@common/hotKey'
 import { APP_EVENT_NAMES, DATA_KEYS, DEFAULT_SETTING } from '@common/constants'
@@ -868,4 +868,25 @@ export const isFollowFeedBackfilled = async(): Promise<boolean> => {
 /** 标记存量补齐已完成（整轮全成功才写） */
 export const markFollowFeedBackfilled = async() => {
   return rendererInvoke(FOLLOW_FEED_EVENT_NAME.mark_backfilled)
+}
+
+// ===== 本地媒体库（票 01/02：行数据走主进程 dbService；文件托管在渲染 worker，不经这些通道） =====
+
+export const localLibraryGetAll = async(): Promise<LX.LocalLibrary.Track[]> => {
+  return rendererInvoke<LX.LocalLibrary.Track[]>(LOCAL_LIBRARY_EVENT_NAME.get_all)
+}
+export const localLibraryAdd = async(tracks: LX.LocalLibrary.TrackInput[]) => {
+  return rendererInvoke<LX.LocalLibrary.TrackInput[]>(LOCAL_LIBRARY_EVENT_NAME.add, tracks)
+}
+export const localLibraryUpdate = async(track: LX.LocalLibrary.Track): Promise<boolean> => {
+  return rendererInvoke<LX.LocalLibrary.Track, boolean>(LOCAL_LIBRARY_EVENT_NAME.update, track)
+}
+export const localLibraryRemove = async(ids: string[]) => {
+  return rendererInvoke<string[]>(LOCAL_LIBRARY_EVENT_NAME.remove, ids)
+}
+export const localLibraryGetByIds = async(ids: string[]): Promise<LX.LocalLibrary.Track[]> => {
+  return rendererInvoke<string[], LX.LocalLibrary.Track[]>(LOCAL_LIBRARY_EVENT_NAME.get_by_ids, ids)
+}
+export const localLibraryCount = async(): Promise<number> => {
+  return rendererInvoke<number>(LOCAL_LIBRARY_EVENT_NAME.count)
 }

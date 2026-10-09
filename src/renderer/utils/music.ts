@@ -1,5 +1,4 @@
-import { checkPath, joinPath, extname, basename, readFile, getFileStats } from '@common/utils/nodejs'
-import { formatPlayTime } from '@common/utils/common'
+import { checkPath, joinPath, extname, readFile, getFileStats } from '@common/utils/nodejs'
 import { decodeKrc } from '@common/utils/lyricUtils/kg'
 import { type IAudioMetadata } from 'music-metadata'
 
@@ -52,47 +51,6 @@ export const getMusicFilePath = async(musicInfo: LX.Music.MusicInfo | LX.Downloa
     return getLocalFilePath(musicInfo)
   }
   return ''
-}
-
-/**
- * 创建本地音乐信息对象
- * @param path 文件路径
- * @returns
- */
-export const createLocalMusicInfo = async(path: string): Promise<LX.Music.MusicInfoLocal | null> => {
-  if (!await checkPath(path)) return null
-  const { parseFile } = await import('music-metadata')
-
-  let metadata
-  try {
-    metadata = await parseFile(path)
-  } catch (err) {
-    console.log(err)
-    return null
-  }
-
-  // console.log(metadata)
-  let ext = extname(path)
-  // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-  let name = (metadata.common.title || basename(path, ext)).trim()
-  let singer = metadata.common.artists?.length ? metadata.common.artists.map(a => a.trim()).join('、') : ''
-  let interval = metadata.format.duration ? formatPlayTime(metadata.format.duration) : ''
-  let albumName = metadata.common.album?.trim() ?? ''
-
-  return {
-    id: path,
-    name,
-    singer,
-    source: 'local',
-    interval,
-    meta: {
-      albumName,
-      filePath: path,
-      songId: path,
-      picUrl: '',
-      ext: ext.replace(/^\./, ''),
-    },
-  }
 }
 
 let prevFileInfo: {

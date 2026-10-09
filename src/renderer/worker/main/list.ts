@@ -3,7 +3,6 @@
 import { SPLIT_CHAR } from '@common/constants'
 import { filterFileName, sortInsert, similar, arrPushByPosition, arrShuffle } from '@common/utils/common'
 import { joinPath, saveStrToFile } from '@common/utils/nodejs'
-import { createLocalMusicInfo } from '@renderer/utils/music'
 
 
 /**
@@ -298,22 +297,6 @@ export const createSortedList = (list: LX.Music.MusicInfo[], position: number, i
   }
   list = list.filter(mInfo => map.has(mInfo.id))
   arrPushByPosition(list, infos, Math.min(position, list.length))
-  return list
-}
-
-
-/**
- * 创建本地列表音乐信息
- * @param filePaths 文件路径
- */
-export const createLocalMusicInfos = async(filePaths: string[]): Promise<LX.Music.MusicInfoLocal[]> => {
-  const list: LX.Music.MusicInfoLocal[] = []
-  for await (const path of filePaths) {
-    const musicInfo = await createLocalMusicInfo(path)
-    if (!musicInfo) continue
-    list.push(musicInfo)
-  }
-
   return list
 }
 
