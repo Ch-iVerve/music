@@ -9,7 +9,7 @@ transition(enter-active-class="animated slideInRight" leave-active-class="animat
     div(:class="[$style.main, {[$style.showComment]: isShowPlayComment}]")
       div.left(:class="[$style.left, { [$style.infoPageCenter]: isInfoPageCenter }]")
         //- div(:class="$style.info")
-        div(:class="$style.info")
+        div(:class="[$style.info, { [$style.aligning]: isAligning }]")
           img(v-if="musicInfo.pic" :class="$style.img" :src="musicInfo.pic")
           div.description(:class="['scroll', $style.description]")
             p {{ $t('player__music_name') }}{{ musicInfo.name }}
@@ -92,6 +92,10 @@ export default {
     // 评论面板上（用户 2026-10-07 反馈）。上留白的下移与此判据无关、对两种布局常驻（见 .left）。
     // 切歌会先走 stop() 以空歌词重建，lines 必然归零，这个判据覆盖切歌全程
     const isInfoPageCenter = computed(() => lyric.lines.length == 0 && !isShowPlayComment.value)
+    // 对齐缓冲（用户 2026-10-09 反馈）：切歌后新歌歌词未落定前隐藏信息块（isAligning → opacity 0），
+    // 落定后在新位置整块淡入——「居中↔左侧」的换位发生在不可见期间，看不到位置跳变。
+    // 窗口开在 setPlayMusicInfo（切歌），关在 getLyricInfo 落定（core/player/action.ts 的 finally）
+    const isAligning = computed(() => lyric.isLoading)
     const router = useRouter()
 
     let clickTime = 0
@@ -177,6 +181,7 @@ export default {
       isShowPlayComment,
       musicInfo,
       isInfoPageCenter,
+      isAligning,
       hide,
       handleContextMenu,
       hideComment,
@@ -357,6 +362,14 @@ export default {
   // 封面（.img 是 min-width:100%）与歌曲信息都受这个上限约束，300 → 400 让封面明显大一圈
   max-width: 400px;
   min-height: 0;
+  // 对齐缓冲：切歌后歌词未落定（isAligning）先整块隐去，落定后在新位置淡入——
+  // 「居中↔左侧」的换位发生在不可见期间，看不到跳变（用户 2026-10-09 反馈）。
+  // 取比 @transition-normal(.4s) 更短的 0.2s，「微」缓冲不抢戏；隐去时连同可点性一起收掉
+  transition: opacity .2s ease;
+  &.aligning {
+    opacity: 0;
+    pointer-events: none;
+  }
 }
 .img {
   max-width: 100%;

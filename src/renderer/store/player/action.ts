@@ -16,6 +16,7 @@ import {
 import { getListMusicsFromCache } from '@renderer/store/list/action'
 import { downloadList } from '@renderer/store/download/state'
 import { setProgress } from './playProgress'
+import { setLoading } from './lyric'
 import { playNext } from '@renderer/core/player'
 import { LIST_IDS } from '@common/constants'
 import { toRaw } from '@common/utils/vueTools'
@@ -193,6 +194,11 @@ export const setPlayMusicInfo = (listId: string | null, musicInfo: LX.Download.L
 
     playInfo.playIndex = playIndex
     playInfo.playerPlayIndex = playerPlayIndex
+    // 切歌即进入对齐窗口（须在 musicToggled 之前：那个事件链会同步清零 lines）：
+    // 新歌「有没有歌词」要等 getLyricInfo 落定才知道（core/player/action.ts 的 finally 关窗）。
+    // 播放详情页在窗口期内隐藏信息块，落定后在新位置整块显示——换位发生在不可见期间，
+    // 看不到位置跳变（用户 2026-10-09 反馈）。显式「停止播放」不走这里，块保持已知位置
+    setLoading(true)
     window.app_event.musicToggled()
   }
 }

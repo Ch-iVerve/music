@@ -20,6 +20,7 @@ import { requestMsg } from '@renderer/utils/message'
 import { getRandom } from '@renderer/utils/index'
 import { setTempList } from '@renderer/store/list/action'
 import { tempListMeta } from '@renderer/store/list/state'
+import { setLoading } from '@renderer/store/player/lyric'
 import { addFavSongToCloud, removeFavSongFromCloud, favErrorText } from '@renderer/store/user/action'
 import { dialog } from '@renderer/plugins/Dialog'
 import { addDislikeInfo } from '@renderer/core/dislikeList'
@@ -233,6 +234,10 @@ const handleRestorePlay = async(restorePlayInfo: LX.Player.SavedPlayInfo) => {
     console.log(err)
     if (musicInfo.id != playMusicInfo.musicInfo?.id) return
     setAllStatus(window.i18n.t('lyric__load_error'))
+  }).finally(() => {
+    // 歌词结果落定（成功/失败都算）——对齐窗口到此关上，「有没有歌词」可以下结论。
+    // 过期响应不关窗：窗口已归切歌后的新歌所有
+    if (musicInfo.id == playMusicInfo.musicInfo?.id) setLoading(false)
   })
 
   if (appSetting['player.togglePlayMethod'] == 'random' && !playMusicInfo.isTempPlay) addPlayedList({ ...playMusicInfo as LX.Player.PlayMusicInfo })
@@ -284,6 +289,10 @@ const handlePlay = () => {
     console.log(err)
     if (musicInfo.id != playMusicInfo.musicInfo?.id) return
     setAllStatus(window.i18n.t('lyric__load_error'))
+  }).finally(() => {
+    // 歌词结果落定（成功/失败都算）——对齐窗口到此关上，「有没有歌词」可以下结论。
+    // 过期响应不关窗：窗口已归切歌后的新歌所有
+    if (musicInfo.id == playMusicInfo.musicInfo?.id) setLoading(false)
   })
 }
 
