@@ -4,6 +4,7 @@ import { appSetting } from '@renderer/store/setting'
 import { updateListMusics } from '@renderer/store/list/action'
 import { saveLyric, saveMusicUrl } from '@renderer/utils/ipc'
 import { getLocalFilePath } from '@renderer/utils/music'
+import { hintMissingFileFallback } from '@renderer/core/localLibrary/availability'
 
 import {
   buildLyricInfo,
@@ -77,6 +78,8 @@ export const getMusicUrl = async({ musicInfo, isRefresh, allowToggleSource = tru
   if (!isRefresh) {
     const path = await getLocalFilePath(musicInfo)
     if (path) return encodePath(path)
+    // 文件丢了（票 06）：明确告知「已临时换在线源」，不再静默换源
+    hintMissingFileFallback()
   }
 
   try {

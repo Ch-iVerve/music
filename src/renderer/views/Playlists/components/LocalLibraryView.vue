@@ -44,10 +44,17 @@
           <span :class="$style.headerCount">{{ item.count }}</span>
         </button>
         <!-- 曲目行 -->
-        <div v-else :class="$style.row" :data-index="item.playIndex" @dblclick="handlePlay(item.playIndex)">
+        <div
+          v-else
+          :class="[$style.row, { [$style.missing]: isMediaPathMissing(item.track.filePath) }]"
+          :data-index="item.playIndex"
+          :title="isMediaPathMissing(item.track.filePath) ? $t('playlists__missing_file_tip') : null"
+          @dblclick="handlePlay(item.playIndex)"
+        >
           <span :class="$style.num">{{ (item.playIndex ?? 0) + 1 }}</span>
           <library-cover :media-path="item.track.filePath" />
           <span :class="$style.name" :title="item.track.name">{{ item.track.name }}</span>
+          <span v-if="isMediaPathMissing(item.track.filePath)" :class="$style.missingBadge">{{ $t('playlists__missing_file') }}</span>
           <span :class="$style.singer" :title="item.track.singer">{{ item.track.singer }}</span>
           <span :class="$style.album" :title="item.track.album">{{ item.track.album }}</span>
           <span :class="$style.interval">{{ item.track.interval }}</span>
@@ -65,6 +72,7 @@ import { LIST_IDS } from '@common/constants'
 import { getEnvParams, localLibraryGetAll, showSelectDialog } from '@renderer/utils/ipc'
 import { buildLocalEntry, importFolderToNewList, useLocalImportState } from '@renderer/core/localLibrary'
 import { revokeCoverUrls } from '@renderer/core/localLibrary/covers'
+import { checkAvailability, isMediaPathMissing } from '@renderer/core/localLibrary/availability'
 import { groupLibraryTracks, filterLibraryTracks } from '@renderer/core/localLibrary/grouping'
 import { playMusicList } from '@renderer/core/player/action'
 
@@ -144,6 +152,8 @@ export default {
 
     const load = async() => {
       tracks.value = await localLibraryGetAll()
+      // 失效核对（票 06）：打开库即异步核对，标记是响应式的（scoped slot 追踪），丢了会在行上出现徽标
+      void checkAvailability(tracks.value.map(track => `${mediaDir.value}/${track.id}.${track.ext}`))
     }
     onMounted(async() => {
       mediaDir.value = (await getEnvParams()).mediaDir
@@ -168,12 +178,14 @@ export default {
 
     return {
       tracks,
+      viewTracks,
       dom_list,
       query,
       dim,
       capsules,
       rows,
       importing,
+      isMediaPathMissing,
       handlePlay,
       handleDimChange,
       handleToggleCollapse,
@@ -341,6 +353,23 @@ export default {
   flex: none;
   width: 44px;
   text-align: right;
+  color: var(--color-font-label);
+}
+
+.missing {
+  .name,
+  .singer,
+  .album {
+    opacity: 0.5;
+  }
+}
+
+.missing-badge {
+  flex: none;
+  padding: 1px 6px;
+  border: 1px solid var(--color-primary-light-500);
+  border-radius: 3px;
+  font-size: 11px;
   color: var(--color-font-label);
 }
 </style>

@@ -3,6 +3,7 @@ import { playMusicInfo, playInfo } from '@renderer/store/player/state'
 import { getListMusics } from '@renderer/store/list/action'
 import { appSetting } from '@renderer/store/setting'
 import { findPlayingRowIndex } from '@renderer/utils/playingRowLocate'
+import { checkAvailabilityForMusics } from '@renderer/core/localLibrary/availability'
 
 
 export default ({ props, onLoadedList }) => {
@@ -16,8 +17,11 @@ export default ({ props, onLoadedList }) => {
 
   const list = ref([])
   watch(() => props.listId, id => {
-    getListMusics(id).then(l => {
+    getListMusics(id).then(async l => {
       list.value = [...l]
+      // 失效核对（票 06）：打开歌单即核对本地条目；标记是响应式的，核对完成徽标就地出现。
+      // 核对不阻塞列表显示（先出列表再标丢失）
+      await checkAvailabilityForMusics(l)
       if (id != props.listId) return
       onLoadedList()
     })

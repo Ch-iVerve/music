@@ -57,6 +57,19 @@ export const scanAudioFolder = async(dirPath: string): Promise<string[]> => {
   return out
 }
 
+/** 批量核对文件存在性（票 06 的失效核对）：返回**已丢失**的路径子集 */
+export const checkMissingPaths = async(paths: string[]): Promise<string[]> => {
+  const missing: string[] = []
+  for (const filePath of paths) {
+    try {
+      await fs.access(filePath)
+    } catch {
+      missing.push(filePath)
+    }
+  }
+  return missing
+}
+
 /** 内嵌歌词有无（粗判：common.lyrics 或原生 tag 里带 LYRIC 字样；票 08/09 的编辑器用 taglib 精确读写） */
 const hasEmbeddedLyric = (metadata: LX.MusicMetadataModule.IAudioMetadata): boolean => {
   if (metadata.common.lyrics?.length) return true

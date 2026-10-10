@@ -48,6 +48,7 @@
           <div class="list-item-cell auto name" :aria-label="item.name">
             <span class="select name">{{ item.name }}</span>
             <span v-if="isShowSource" class="no-select label-source">{{ getSourceName(item.source) }}</span>
+            <span v-if="item.source == 'local' && isMediaPathMissing(item.meta.filePath)" :class="$style.missingBadge" :title="$t('playlists__missing_file_tip')">{{ $t('playlists__missing_file') }}</span>
           </div>
           <div class="list-item-cell" style="flex: 0 0 22%;">
             <span
@@ -98,6 +99,7 @@
           <div class="list-item-cell auto name">
             <span class="select name" :aria-label="item.name">{{ item.name }}</span>
             <span v-if="isShowSource" class="no-select label-source">{{ getSourceName(item.source) }}</span>
+            <span v-if="item.source == 'local' && isMediaPathMissing(item.meta.filePath)" :class="$style.missingBadge" :title="$t('playlists__missing_file_tip')">{{ $t('playlists__missing_file') }}</span>
           </div>
           <div class="list-item-cell" style="flex: 0 0 25%;">
             <span
@@ -141,6 +143,7 @@
 import { clipboardWriteText } from '@common/utils/electron'
 import { assertApiSupport } from '@renderer/store/utils'
 import { getSourceName } from '@renderer/store'
+import { isMediaPathMissing } from '@renderer/core/localLibrary/availability'
 import SearchList from './components/SearchList.vue'
 import MusicSortModal from './components/MusicSortModal.vue'
 import useListInfo from './useListInfo'
@@ -374,6 +377,7 @@ export default {
       listItemHeight,
       handleListItemClick,
       isUnavailableRow,
+      isMediaPathMissing,
       selectedList,
       handleListItemRightClick,
       removeAllSelect,
@@ -518,5 +522,16 @@ export default {
   &:hover {
     text-decoration: underline;
   }
+}
+
+// 托管文件丢失徽标（票 06）：中性描边（仓库无 error 语义 token，不造红色），悬停看 tip
+.missing-badge {
+  flex: none;
+  padding: 1px 6px;
+  margin-left: 6px;
+  border: 1px solid var(--color-primary-light-500);
+  border-radius: 3px;
+  font-size: 11px;
+  color: var(--color-font-label);
 }
 </style>
