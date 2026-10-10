@@ -34,6 +34,8 @@ export interface LocalTagInfo {
   hasPic: boolean
   hasLyric: boolean
   cover: { format: string, data: Uint8Array } | null
+  /** 内嵌歌词文本（USLT / Vorbis LYRICS；无则 null） */
+  lyricsText: string | null
 }
 
 const toStr = (value: number | string | undefined | null): string | null =>
@@ -49,6 +51,7 @@ export const readTrackTags = async(filePath: string, wasmPath: string): Promise<
     const pictures = file.getPictures()
     const cover = pictures[0] ?? null
     const disc = file.getProperty('DISCNUMBER')?.[0] ?? null
+    const lyrics = file.getLyrics()
     return {
       name: tag.title ?? '',
       singer: tag.artist ?? '',
@@ -58,7 +61,8 @@ export const readTrackTags = async(filePath: string, wasmPath: string): Promise<
       trackNum: toStr(tag.track),
       discNum: disc === '' ? null : disc,
       hasPic: pictures.length > 0,
-      hasLyric: file.getLyrics().length > 0,
+      hasLyric: lyrics.length > 0,
+      lyricsText: lyrics[0]?.text ?? null,
       cover: cover ? { format: cover.mimeType, data: cover.data } : null,
     }
   } finally {
@@ -82,6 +86,41 @@ const toInt = (value: string | null | undefined): number | undefined => {
   return Number.isNaN(num) ? undefined : num
 }
 
+/** 读任意 .lrc 文本文件（拖入关联用）：jschardet 探测编码 → iconv 解码（同 utils/music 的 .lrc 读取口径） */
+export const readDroppedLrcText = async(lrcPath: string): Promise<string> => {
+  const buf = fs.readFileSync(lrcPath)
+  const { detect } = await import('jschardet')
+  const { confidence, encoding } = detect(buf)
+  const iconv = (await import('iconv-lite')).default
+  if (confidence > 0.8 && iconv.encodingExists(encoding)) return iconv.decode(buf, encoding)
+  return buf.toString('utf-8')
+}
+
+/** 写歌词进内嵌歌词 tag（USLT / Vorbis LYRICS；逐字内容以纯文本落盘），返回派生标记 */
+export const writeTrackLyrics = async(options: {
+  filePath: string
+  wasmPath: string
+  lyricsText: string
+}): Promise<{ size: number, hasLyric: boolean }> => {
+  const { filePath, wasmPath, lyricsText } = options
+  const taglib = await getTaglib(wasmPath)
+  const original = new Uint8Array(fs.readFileSync(filePath))
+  const file = await taglib.open(original)
+  try {
+    file.setLyrics([{ text: lyricsText }])
+    file.save()
+    const out = file.getFileBuffer()
+    fs.writeFileSync(filePath, out)
+    const verify = await taglib.open(new Uint8Array(fs.readFileSync(filePath)))
+    try {
+      return { size: out.length, hasLyric: verify.getLyrics().length > 0 }
+    } finally {
+      verify.dispose()
+    }
+  } finally {
+    file.dispose()
+  }
+}
 /**
  * 写 tag（文本字段 + 可选封面替换）并落盘，返回更新后的派生字段（体积/有无标记）。
  * `undefined` 的字段**不动**（批量编辑的「留空不改」契约，票 10 与单首共用）；

@@ -3,8 +3,9 @@ import path from 'node:path'
 import { ref } from '@common/utils/vueTools'
 import { useRouter } from '@common/utils/vueRouter'
 import { createUserList } from '@renderer/store/list/action'
+import { localLibraryGetAll, localLibraryUpdate, getEnvParams } from '@renderer/utils/ipc'
 import { userLists } from '@renderer/store/list/state'
-import { importFolderToNewList, importLocalFilesToList } from './index'
+import { importFolderToNewList, importLocalFilesToList, readDroppedLrcText } from './index'
 
 /**
  * 窗口级拖拽导入（票 04）。
@@ -54,9 +55,11 @@ const handleDrop = async(event: DragEvent) => {
   if (!files.length) return
   const folders: string[] = []
   const audioFiles: string[] = []
+  const lrcFiles: string[] = []
   for (const file of files) {
     if (isDirectory(file.path)) folders.push(file.path)
     else if (AUDIO_EXTENSIONS.has(path.extname(file.name).slice(1).toLowerCase())) audioFiles.push(file.path)
+    else if (path.extname(file.name).toLowerCase() == '.lrc') lrcFiles.push(file.path)
   }
   // 顺序导入：编排层同一时刻只允许一个导入在跑（visible 守卫），并行会让后来者被静默丢掉
   for (const folder of folders) await importFolderToNewList(folder)
@@ -64,6 +67,37 @@ const handleDrop = async(event: DragEvent) => {
     const listId = await resolveTargetListId()
     await importLocalFilesToList(listId, audioFiles)
   }
+  if (lrcFiles.length) await linkLrcFiles(lrcFiles)
+}
+
+/**
+ * 拖入 .lrc → 按「文件名（去扩展）== 库曲目名」匹配并**内嵌**为歌词（票 09：零旁车）。
+ * 匹配不到的歌名静默略过（拖一堆杂文件时不弹窗打扰）。
+ */
+const linkLrcFiles = async(lrcPaths: string[]) => {
+  const { mediaDir, taglibWasmPath } = await getEnvParams()
+  const tracks = await localLibraryGetAll()
+  let linked = 0
+  for (const lrcPath of lrcPaths) {
+    const base = path.basename(lrcPath, path.extname(lrcPath)).trim().toLowerCase()
+    if (!base) continue
+    const matched = tracks.filter(track => track.name.trim().toLowerCase() == base)
+    const text = await readDroppedLrcText(lrcPath)
+    for (const track of matched) {
+      try {
+        const derived = await window.lx.worker.main.writeTrackLyrics({
+          filePath: path.join(mediaDir, `${track.id}.${track.ext}`),
+          wasmPath: taglibWasmPath,
+          lyricsText: text,
+        })
+        await localLibraryUpdate({ ...track, hasLyric: derived.hasLyric, size: derived.size })
+        linked++
+      } catch (err) {
+        console.log('[dragImport] 歌词内嵌失败:', track.name, err)
+      }
+    }
+  }
+  if (linked) console.log(`[dragImport] 已内嵌 ${linked} 首歌词`)
 }
 
 let installed = false

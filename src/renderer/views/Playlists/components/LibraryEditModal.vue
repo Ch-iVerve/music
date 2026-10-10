@@ -51,6 +51,7 @@
         <p v-if="errorText" :class="$style.error">{{ errorText }}</p>
 
         <div :class="$style.footer">
+          <base-btn min @click="$emit('edit-lyrics')">{{ $t('playlists__lyric_edit') }}</base-btn>
           <base-btn @click="$emit('close', true)">{{ $t('playlists__edit_cancel') }}</base-btn>
           <base-btn :disabled="saving" @click="handleSave">{{ $t('playlists__edit_save') }}</base-btn>
         </div>
@@ -83,7 +84,7 @@ export default {
       default: null,
     },
   },
-  emits: ['close', 'saved'],
+  emits: ['close', 'saved', 'edit-lyrics'],
   setup(props, { emit }) {
     const loading = ref(false)
     const saving = ref(false)

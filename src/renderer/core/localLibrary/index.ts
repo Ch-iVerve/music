@@ -225,3 +225,31 @@ export const saveTrackEdits = async(
     hasLyric: derived.hasLyric,
   })
 }
+
+/** 歌词编辑的初始信息（文件内歌词文本 + 托管路径） */
+export const loadTrackLyricsInfo = async(track: LX.LocalLibrary.Track): Promise<{
+  lyricsText: string | null
+  mediaPath: string
+}> => {
+  const { mediaDir, taglibWasmPath } = await getEnvParams()
+  const mediaPath = path.join(mediaDir, `${track.id}.${track.ext}`)
+  const tags = await window.lx.worker.main.readTrackTags(mediaPath, taglibWasmPath)
+  return { lyricsText: tags.lyricsText, mediaPath }
+}
+
+/** 保存歌词：写内嵌歌词 tag（USLT/LYRICS）→ 库行 hasLyric/size 同步（spec D12：歌词只内嵌） */
+export const saveTrackLyrics = async(track: LX.LocalLibrary.Track, lyricsText: string): Promise<void> => {
+  const { mediaDir, taglibWasmPath } = await getEnvParams()
+  const mediaPath = path.join(mediaDir, `${track.id}.${track.ext}`)
+  const derived = await window.lx.worker.main.writeTrackLyrics({
+    filePath: mediaPath,
+    wasmPath: taglibWasmPath,
+    lyricsText,
+  })
+  await localLibraryUpdate({ ...track, hasLyric: derived.hasLyric, size: derived.size })
+}
+
+/** 拖入 .lrc 的文本读入（编码探测在 worker） */
+export const readDroppedLrcText = async(lrcPath: string): Promise<string> => {
+  return window.lx.worker.main.readDroppedLrcText(lrcPath)
+}

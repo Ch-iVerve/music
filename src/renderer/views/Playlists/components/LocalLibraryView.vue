@@ -65,7 +65,8 @@
 
     <!-- 行右键菜单：播放 / 编辑信息（失效标记、删除等更多项在后续票接入同一菜单） -->
     <base-menu v-model="isShowItemMenu" :menus="itemMenus" :xy="itemMenuLocation" item-name="name" @menu-click="handleItemMenuClick" />
-    <library-edit-modal :show="showEdit" :track="editTrack" @close="showEdit = false" @saved="load" />
+    <library-edit-modal :show="showEdit" :track="editTrack" @close="showEdit = false" @saved="load" @edit-lyrics="handleOpenLyric" />
+    <library-lyric-modal :show="showLyric" :track="lyricTrack" @close="showLyric = false" @saved="load" />
 
     <library-rescan-modal :show="showRescan" :report="rescanReport" @close="showRescan = false" @changed="handleRescanChanged" />
   </div>
@@ -77,6 +78,7 @@ import VirtualizedList from '@renderer/components/base/VirtualizedList.vue'
 import LibraryCover from './LibraryCover.vue'
 import LibraryRescanModal from './LibraryRescanModal.vue'
 import LibraryEditModal from './LibraryEditModal.vue'
+import LibraryLyricModal from './LibraryLyricModal.vue'
 import { LIST_IDS } from '@common/constants'
 import { getEnvParams, localLibraryGetAll, showSelectDialog } from '@renderer/utils/ipc'
 import {
@@ -108,6 +110,7 @@ export default {
     LibraryCover,
     LibraryRescanModal,
     LibraryEditModal,
+    LibraryLyricModal,
   },
   setup() {
     const tracks = ref([])
@@ -227,6 +230,15 @@ export default {
       if (action == 'edit') showEdit.value = true
     }
 
+    // 歌词编辑器（票 09）：从信息编辑弹窗跳入；保存后重拉列表（hasLyric/size 变化）
+    const showLyric = ref(false)
+    const lyricTrack = ref(null)
+    const handleOpenLyric = () => {
+      lyricTrack.value = editTrack.value
+      showEdit.value = false
+      showLyric.value = true
+    }
+
     return {
       tracks,
       viewTracks,
@@ -244,6 +256,9 @@ export default {
       itemMenus,
       editTrack,
       showEdit,
+      showLyric,
+      lyricTrack,
+      handleOpenLyric,
       handleRowContextmenu,
       handleItemMenuClick,
       load,
