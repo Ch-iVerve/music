@@ -11,6 +11,7 @@ import { isMac, log } from '@common/utils'
 import createWorkers from './worker'
 import { migrateDBData } from './utils/migrate'
 import { resolveMediaDir } from './utils/mediaDir'
+import { resolveTaglibWasmPath } from './utils/taglibWasmPath'
 import { cleanupLegacyCoverTemp } from './utils/legacyTempCleanup'
 import { openDirInExplorer } from '@common/utils/electron'
 import { setProxyByHost } from '@common/utils/request'
@@ -26,6 +27,8 @@ export const initGlobalData = () => {
     // 本地媒体库托管目录（票 01）：只算路径不建目录（惰性创建见 mediaDir.ts）；
     // 路径只在主进程拼装，渲染侧经 get_env_params 读取，写文件前由管线调 ensureMediaDir()
     mediaDir: resolveMediaDir(),
+    // taglib-wasm 的 wasm 路径（票 08）：worker 读字节后 TagLib.initialize({ wasmBinary })
+    taglibWasmPath: resolveTaglibWasmPath(),
   }
   global.lx = {
     inited: false,

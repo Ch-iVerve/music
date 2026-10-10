@@ -50,6 +50,7 @@
           :data-index="item.playIndex"
           :title="isMediaPathMissing(item.track.filePath) ? $t('playlists__missing_file_tip') : null"
           @dblclick="handlePlay(item.playIndex)"
+          @contextmenu.prevent="handleRowContextmenu($event, item.track)"
         >
           <span :class="$style.num">{{ (item.playIndex ?? 0) + 1 }}</span>
           <library-cover :media-path="item.track.filePath" />
@@ -62,6 +63,10 @@
       </template>
     </virtualized-list>
 
+    <!-- 行右键菜单：播放 / 编辑信息（失效标记、删除等更多项在后续票接入同一菜单） -->
+    <base-menu v-model="isShowItemMenu" :menus="itemMenus" :xy="itemMenuLocation" item-name="name" @menu-click="handleItemMenuClick" />
+    <library-edit-modal :show="showEdit" :track="editTrack" @close="showEdit = false" @saved="load" />
+
     <library-rescan-modal :show="showRescan" :report="rescanReport" @close="showRescan = false" @changed="handleRescanChanged" />
   </div>
 </template>
@@ -71,6 +76,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from '@common/utils/
 import VirtualizedList from '@renderer/components/base/VirtualizedList.vue'
 import LibraryCover from './LibraryCover.vue'
 import LibraryRescanModal from './LibraryRescanModal.vue'
+import LibraryEditModal from './LibraryEditModal.vue'
 import { LIST_IDS } from '@common/constants'
 import { getEnvParams, localLibraryGetAll, showSelectDialog } from '@renderer/utils/ipc'
 import {
@@ -101,6 +107,7 @@ export default {
     VirtualizedList,
     LibraryCover,
     LibraryRescanModal,
+    LibraryEditModal,
   },
   setup() {
     const tracks = ref([])
@@ -197,6 +204,29 @@ export default {
       rescanReport.value = await reconcileLibrary()
     }
 
+    // 行右键菜单（票 08）：播放 / 编辑信息
+    const isShowItemMenu = ref(false)
+    const itemMenuLocation = ref({ x: 0, y: 0 })
+    const editTrack = ref(null)
+    const showEdit = ref(false)
+    const itemMenus = computed(() => ([
+      { name: window.i18n.t('list__play'), action: 'play' },
+      { name: window.i18n.t('playlists__edit_title'), action: 'edit' },
+    ]))
+    const handleRowContextmenu = (event, track) => {
+      itemMenuLocation.value = { x: event.clientX, y: event.clientY }
+      editTrack.value = track
+      isShowItemMenu.value = true
+    }
+    const handleItemMenuClick = (action) => {
+      if (action == 'play') {
+        const row = rows.value.find(row => row.type == 'track' && row.key == editTrack.value?.id)
+        if (row) handlePlay(row.playIndex)
+        return
+      }
+      if (action == 'edit') showEdit.value = true
+    }
+
     return {
       tracks,
       viewTracks,
@@ -209,6 +239,14 @@ export default {
       isMediaPathMissing,
       showRescan,
       rescanReport,
+      isShowItemMenu,
+      itemMenuLocation,
+      itemMenus,
+      editTrack,
+      showEdit,
+      handleRowContextmenu,
+      handleItemMenuClick,
+      load,
       handlePlay,
       handleDimChange,
       handleToggleCollapse,

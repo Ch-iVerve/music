@@ -170,6 +170,7 @@
     "needle": "github:lyswhut/needle#93299ac841b7e9a9f82ca7279b88aaaeda404060",
     "node-id3": "^0.2.9",
     "sortablejs": "^1.15.7",
+    "taglib-wasm": "^2.3.0",
     "tunnel": "^0.0.6",
     "undici": "^7.29.1",
     "utf-8-validate": "^6.0.6",

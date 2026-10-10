@@ -1,9 +1,10 @@
 import path from 'node:path'
 import { ref } from '@common/utils/vueTools'
 import { addListMusics, createUserList, getListMusics } from '@renderer/store/list/action'
-import { getEnvParams, localLibraryAdd, localLibraryGetAll, localLibraryRemove } from '@renderer/utils/ipc'
+import { getEnvParams, localLibraryAdd, localLibraryGetAll, localLibraryRemove, localLibraryUpdate } from '@renderer/utils/ipc'
 import { proxyCallback } from '@renderer/worker/utils'
 import type { LibraryReconcileReport, LocalIngestProgress } from '@renderer/worker/main/library'
+import type { LocalTagInfo } from '@renderer/worker/main/taglib'
 
 /**
  * 托管导入的**主线程编排**（票 02）：worker 管线只碰文件，这里串起查库、落库、写歌单与 UI 状态。
@@ -172,4 +173,55 @@ export const removeLibraryTracksByPath = async(paths: string[]): Promise<void> =
 /** 删除孤儿文件（破坏性：UI 层有二次确认） */
 export const deleteOrphanFiles = async(paths: string[]): Promise<number> => {
   return window.lx.worker.main.deleteOrphanFiles(paths)
+}
+
+export interface TrackEditPayload {
+  name: string
+  singer: string
+  album: string | null
+  year: string | null
+  genre: string | null
+  trackNum: string | null
+  discNum: string | null
+}
+
+export interface TrackEditInfo {
+  track: LX.LocalLibrary.Track
+  tags: LocalTagInfo
+  mediaPath: string
+  taglibWasmPath: string
+}
+
+/** 编辑弹窗的初始信息：库行 + 文件内 tag（可写字段以文件内 tag 为准） */
+export const loadTrackEditInfo = async(track: LX.LocalLibrary.Track): Promise<TrackEditInfo> => {
+  const { mediaDir, taglibWasmPath } = await getEnvParams()
+  const mediaPath = path.join(mediaDir, `${track.id}.${track.ext}`)
+  const tags = await window.lx.worker.main.readTrackTags(mediaPath, taglibWasmPath)
+  return { track, tags, mediaPath, taglibWasmPath }
+}
+
+/**
+ * 保存单首编辑（spec D11 管线）：写托管副本 tag（含封面替换）→ 库行 + 引用歌单行同事务更新。
+ * 编辑歌名/歌手后所有引用歌单的显示自动同步——引用行联动在 localLibraryUpdate 里。
+ */
+export const saveTrackEdits = async(
+  track: LX.LocalLibrary.Track,
+  edits: TrackEditPayload,
+  coverSourcePath: string | null,
+): Promise<void> => {
+  const { mediaDir, taglibWasmPath } = await getEnvParams()
+  const mediaPath = path.join(mediaDir, `${track.id}.${track.ext}`)
+  const derived = await window.lx.worker.main.writeTrackTags({
+    filePath: mediaPath,
+    wasmPath: taglibWasmPath,
+    edits,
+    coverSourcePath,
+  })
+  await localLibraryUpdate({
+    ...track,
+    ...edits,
+    size: derived.size,
+    hasPic: derived.hasPic,
+    hasLyric: derived.hasLyric,
+  })
 }

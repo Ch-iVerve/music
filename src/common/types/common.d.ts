@@ -65,6 +65,8 @@ declare namespace LX {
     workAreaSize?: Electron.Size
     /** 本地媒体库的托管目录（`<userData>/media/`，主进程惰性创建；渲染侧不自行拼接 userData） */
     mediaDir: string
+    /** taglib-wasm 的 wasm 文件路径（主进程按 bundle 位置解析；worker 读字节后显式初始化） */
+    taglibWasmPath: string
   }
 
   interface HotKey {
