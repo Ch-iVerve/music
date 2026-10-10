@@ -425,7 +425,7 @@
   "playlists__cloud_remove_song_failed": "제거에 실패했습니다. 나중에 다시 시도하세요",
   "playlists__cloud_remove_song_tip": "이 클라우드 플레이리스트에서 \"{name}\"을(를) 제거할까요?",
   "playlists__cloud_remove_tip": "클라우드 플레이리스트 \"{name}\"을(를) 삭제할까요? QQ 뮤직에도 반영됩니다.",
-  "playlists__local_empty": "로컬 목록이 없습니다. 위의 + 버튼으로 만드세요",
+  "playlists__local_empty": "로컬 플레이리스트가 없습니다. 왼쪽 아래 \"+ 새 플레이리스트\"로 만드세요",
   "playlists__local_group": "로컬 목록",
   "playlists__tab_cloud": "온라인",
   "playlists__tab_local": "라이브러리",

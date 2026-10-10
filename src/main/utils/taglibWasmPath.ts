@@ -12,7 +12,11 @@ import path from 'path'
  */
 export const resolveTaglibWasmPath = (): string => {
   const candidates = [
+    // 1. dist/static（打包 + prod 构建都由 CopyWebpackPlugin 拷到这里）
+    path.join(__dirname, 'static/taglib-web.wasm'),
+    // 2. 仓库根 node_modules（dev 兜底）
     path.join(__dirname, '../node_modules/taglib-wasm/dist/taglib-web.wasm'),
+    // 3. asar 内 node_modules（若未来把它加进 electron-builder files 白名单）
     path.join(__dirname, '../../node_modules/taglib-wasm/dist/taglib-web.wasm'),
   ]
   for (const candidate of candidates) {

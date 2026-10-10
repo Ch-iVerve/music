@@ -425,7 +425,7 @@
   "playlists__cloud_remove_song_failed": "Failed to remove, try again later",
   "playlists__cloud_remove_song_tip": "Remove \"{name}\" from this cloud playlist?",
   "playlists__cloud_remove_tip": "Delete the cloud playlist \"{name}\"? This also applies in QQ Music.",
-  "playlists__local_empty": "No local lists yet — use the + button above",
+  "playlists__local_empty": "No local playlists yet — use \"+ New Playlist\" at the bottom left",
   "playlists__local_group": "Local lists",
   "playlists__tab_cloud": "Online",
   "playlists__tab_local": "Library",

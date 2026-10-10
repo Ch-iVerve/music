@@ -46,6 +46,12 @@ module.exports = merge(baseConfig, {
           from: path.join(__dirname, '../../src/static'),
           to: path.join(__dirname, '../../dist/static'),
         },
+        // taglib-wasm 的 wasm 本体（票 08/14）：包是 ESM、被 webpack 打进 JS 了，但 .wasm 文件
+        // 必须单独随包走——主进程 resolveTaglibWasmPath 的第一位候选就是 dist/static/ 这一份
+        {
+          from: path.join(__dirname, '../../node_modules/taglib-wasm/dist/taglib-web.wasm'),
+          to: path.join(__dirname, '../../dist/static/taglib-web.wasm'),
+        },
       ],
     }),
     new webpack.DefinePlugin({

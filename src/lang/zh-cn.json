@@ -425,7 +425,7 @@
   "playlists__cloud_remove_song_failed": "移除失败，请稍后再试",
   "playlists__cloud_remove_song_tip": "要把「{name}」从这个云端歌单里移除吗？",
   "playlists__cloud_remove_tip": "要删除云端歌单「{name}」吗？这个操作在 QQ 音乐里也会生效。",
-  "playlists__local_empty": "还没有自建列表，点右上角 + 新建",
+  "playlists__local_empty": "还没有自建歌单，点左下角「＋ 新建歌单」创建",
   "playlists__local_group": "本地自建列表",
   "playlists__tab_cloud": "在线",
   "playlists__tab_local": "库",
