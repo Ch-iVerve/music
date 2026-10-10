@@ -133,6 +133,14 @@
     <common-download-multiple-modal v-model:show="isShowDownloadMultiple" :list="selectedList" teleport="#view" :list-id="listId" @confirm="removeAllSelect" />
     <search-list :list="list" :visible="isShowSearchBar" @action="handleMusicSearchAction" />
     <music-sort-modal v-model:show="isShowMusicSortModal" :music-info="selectedSortMusicInfo" :selected-num="selectedNum" @confirm="sortMusic" />
+    <!-- 批量编辑（票 10）：行右键菜单在多选 ≥2 时出现；完成后发 myListUpdate 让表格重拉 -->
+    <library-batch-edit-modal
+      :show="isShowBatchEdit"
+      :musics="batchEditMusics"
+      teleport="#view"
+      @close="isShowBatchEdit = false"
+      @done="handleBatchEditDone"
+    />
     <base-menu v-model="isShowItemMenu" :menus="menus" :xy="menuLocation" item-name="name" @menu-click="handleMenuClick" />
     <!-- 多位歌手时让用户挑（工单 02）：用仓库既有的 base-menu，不自造弹窗 -->
     <base-menu v-model="isShowSingerPicker" :menus="singerPickerMenus()" :xy="singerPickerXy" item-name="name" @menu-click="handleSingerPickerClick" />
@@ -140,12 +148,14 @@
 </template>
 
 <script>
+import { ref } from '@common/utils/vueTools'
 import { clipboardWriteText } from '@common/utils/electron'
 import { assertApiSupport } from '@renderer/store/utils'
 import { getSourceName } from '@renderer/store'
 import { isMediaPathMissing } from '@renderer/core/localLibrary/availability'
 import SearchList from './components/SearchList.vue'
 import MusicSortModal from './components/MusicSortModal.vue'
+import LibraryBatchEditModal from '@renderer/views/Playlists/components/LibraryBatchEditModal.vue'
 import useListInfo from './useListInfo'
 import useList from './useList'
 import useMenu from './useMenu'
@@ -166,6 +176,7 @@ export default {
   components: {
     SearchList,
     MusicSortModal,
+    LibraryBatchEditModal,
   },
   props: {
     listId: {
@@ -183,6 +194,18 @@ export default {
     // 心形键要显示收藏态：一挂载就把它拉回来（store 里缓存，一次会话只真拉一次）。
     // 只在开着操作键时拉——关着的时候行内根本没有这颗心，白拉一次请求
     if (actionButtonsVisible) loadFavState()
+
+    // 批量编辑（票 10）：快照当前多选（弹窗期间清选不影响名单）；完成发 myListUpdate 触发表格重拉
+    const isShowBatchEdit = ref(false)
+    const batchEditMusics = ref([])
+    const handleShowBatchEditModal = () => {
+      batchEditMusics.value = [...selectedList.value]
+      isShowBatchEdit.value = true
+    }
+    const handleBatchEditDone = () => {
+      removeAllSelect()
+      window.app_event.emit('myListUpdate', [props.listId])
+    }
 
     let scrollIndex = null
     let isAnimation = false
@@ -281,6 +304,8 @@ export default {
     } = useMenu({
       assertApiSupport,
       emit,
+      selectedList,
+      handleShowBatchEditModal,
 
       handleShowDownloadModal,
       handlePlayMusic,
@@ -378,6 +403,10 @@ export default {
       handleListItemClick,
       isUnavailableRow,
       isMediaPathMissing,
+      isShowBatchEdit,
+      batchEditMusics,
+      handleShowBatchEditModal,
+      handleBatchEditDone,
       selectedList,
       handleListItemRightClick,
       removeAllSelect,

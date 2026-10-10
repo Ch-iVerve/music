@@ -8,6 +8,8 @@ import useFavSong from '@renderer/utils/compositions/useFavSong'
 export default ({
   assertApiSupport,
   emit,
+  selectedList = [],
+  handleShowBatchEditModal = () => {},
 
   handleShowDownloadModal,
   handlePlayMusic,
@@ -80,6 +82,12 @@ export default ({
         name: t('list__add_to'),
         action: 'addTo',
         disabled: !itemMenuControl.addTo,
+      },
+      // 批量编辑（票 10）：多选 ≥2 时出现；只对本地托管条目生效（在线歌/旧条目在弹窗里报告跳过）
+      {
+        name: t('playlists__batch_edit'),
+        action: 'batch_edit',
+        hide: !selectedList || selectedList.length < 2,
       },
       {
         name: t('list__move_to'),
@@ -190,6 +198,9 @@ export default ({
         break
       case 'addTo':
         handleShowMusicAddModal(index)
+        break
+      case 'batch_edit':
+        handleShowBatchEditModal()
         break
       case 'fav':
         // 一键切换「我喜欢」：失败会在 toggleFav 里弹出来（未登录 → 请先登录 QQ 音乐）
