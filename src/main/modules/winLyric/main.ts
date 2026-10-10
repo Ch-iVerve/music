@@ -2,6 +2,7 @@ import path from 'node:path'
 import { BrowserWindow } from 'electron'
 import { debounce, getPlatform, isLinux, isWin } from '@common/utils'
 import { applyWindowDrag, clampWindowBoundsToWorkArea, MIN_SIZE, type ResizeEdge, type WindowBounds } from '@common/utils/windowGeometry'
+import { createDragCoalescer } from './dragCoalescer'
 import { initWindowSize, minHeight, minWidth } from './utils'
 import { mainSend } from '@common/mainIpc'
 import { encodePath } from '@common/utils/electron'
@@ -232,19 +233,26 @@ export const getBounds = (): Electron.Rectangle | null => {
 /**
  * 写窗口几何（内容区坐标系）。
  *
- * 写完回读差多少就按差值再写一次：X11 + 小数缩放（本机 dpr=1.296875）下，
- * `setContentBounds` 会把请求取整到物理像素，实测**系统性偏大 ~2 DIP**；这个偏差会被
+ * `compensate`（默认 true）控制写完后的「回读差补」：X11 + 小数缩放（本机 dpr=1.296875）
+ * 下，`setContentBounds` 会把请求取整到物理像素，实测**系统性偏大 ~2 DIP**；这个偏差会被
  * 「落盘 → 下次建窗」循环逐次叠加（实测不补偿时每次重启 +2~8 DIP，无上限），补一次就收敛。
  *
- * 两条约束：
+ * 拖动帧必须传 `compensate = false`（见 handleWindowDrag）：补偿对落盘没有任何贡献——
+ * 拖动期间落盘的是 intendedBounds（我们的请求值），不是回读值；它只为让 X 立刻对齐到
+ * DIP，代价是每帧一次**同步** X 往返 + 小数缩放下几乎每帧必差的第二次写窗口
+ * （2026-10-10 实测为拖动卡顿的主成分）。拖动帧的 ±2 物理像素偏差不可感知，
+ * 收敛交给下一次建窗时的补偿。
+ *
+ * 补偿的另外两条约束（仅 compensate = true 时相关）：
  * - 补偿值不得低于最小尺寸——平台的量化误差本来就在 ±2 DIP，按差值补会把它推到下限以下
  *   （实测最小尺寸会被缩到 37），钳在 `minSize` 上；
  * - 补偿只做一轮：物理量化步长 < 1 DIP 时差值不会再变小，反复写只会来回抖。
  */
-export const setBounds = (bounds: Electron.Rectangle, minSize = MIN_SIZE) => {
+export const setBounds = (bounds: Electron.Rectangle, minSize = MIN_SIZE, compensate = true) => {
   if (!browserWindow) return
   isWinBoundsUpdateing = true
   browserWindow.setContentBounds(bounds)
+  if (!compensate) return
   const got = browserWindow.getContentBounds()
   if (got.x != bounds.x || got.y != bounds.y || got.width != bounds.width || got.height != bounds.height) {
     browserWindow.setContentBounds({
@@ -257,14 +265,64 @@ export const setBounds = (bounds: Electron.Rectangle, minSize = MIN_SIZE) => {
 }
 
 /**
+ * 一次拖动帧的几何落地：按按下瞬间的基准算下一帧 → 钳工作区 → 记意图 → 写窗口。
+ * 写入走 `setBounds(…, compensate = false)`（理由见 setBounds 注释）。
+ */
+const applyDragUpdate = (action: LX.DesktopLyric.WindowDrag) => {
+  if (!browserWindow || !dragState) return
+  const dx = Math.round(action.dx ?? 0)
+  const dy = Math.round(action.dy ?? 0)
+  // 锁定态只许移动（ui-polish-followups 工单 07）：收到缩放帧整帧跳过——不写窗口、也不记意图值。
+  // 判据是**现读**设置，所以拖动中途被锁（快捷键）也能立刻停住。
+  const next = applyWindowDrag(dragState.base, dragState, dx, dy, global.lx.appSetting['desktopLyric.isLock'])
+  if (!next) return
+  const bounds = clampWindowBoundsToWorkArea(
+    next,
+    global.lx.appSetting['desktopLyric.isLockScreen'] ? global.envParams.workAreaSize : null,
+  )
+  keepIntendedBounds(bounds)
+  setBounds(bounds, MIN_SIZE, false)
+}
+
+const dragCoalescer = createDragCoalescer<LX.DesktopLyric.WindowDrag>(applyDragUpdate)
+
+/**
+ * 断联保险：update 流停止超过 1s 就解除拖动态。
+ *
+ * 为什么需要：透明歌词窗在部分状态下（实测暂停隐藏、以及部分像素级命中场景）会
+ * **吞掉 mouseup**——渲染层的 endWindowDrag 发不出来，主进程的 dragState 带着旧基准
+ * 一直挂着；之后的任何一次输入会被当成「自旧按下点起算的巨量位移」，把窗口甩进
+ * 屏幕角落并钳到最小尺寸（2026-10-10 复盘的坍缩成因）。松手正常时 end 会先到，
+ * 这个定时器只是兜底；代价是真实拖动中停顿超过 1s 后需重新按住（可接受，远好于甩飞）。
+ */
+const DRAG_DEADMAN_MS = 1000
+let dragDeadman: NodeJS.Timeout | null = null
+const armDragDeadman = () => {
+  if (dragDeadman) clearTimeout(dragDeadman)
+  dragDeadman = setTimeout(() => {
+    dragDeadman = null
+    dragState = null
+  }, DRAG_DEADMAN_MS)
+}
+const disarmDragDeadman = () => {
+  if (!dragDeadman) return
+  clearTimeout(dragDeadman)
+  dragDeadman = null
+}
+
+/**
  * 处理渲染侧的拖动协议（移动 / 缩放都走这里）。
  * 拖动期间主进程是几何的唯一计算方：渲染侧不知道也不需要知道窗口当前尺寸。
+ * update 帧经 `dragCoalescer` 合并到 ~60fps（理由见 dragCoalescer.ts）。
  */
 export const handleWindowDrag = (action: LX.DesktopLyric.WindowDrag) => {
   if (!browserWindow) return
   switch (action.type) {
     case 'start':
       if (!action.mode) break
+      // 上一轮的残帧相对新基准没有意义，直接丢弃（不清的话，快速连按会把旧位移打进新拖动）
+      dragCoalescer.clear()
+      disarmDragDeadman()
       dragState = {
         mode: action.mode,
         edge: action.edge,
@@ -272,22 +330,15 @@ export const handleWindowDrag = (action: LX.DesktopLyric.WindowDrag) => {
       }
       break
     case 'end':
+      // 先冲刷暂存帧再解除拖动态：最后一帧不能丢，否则快速甩动松手后窗口停在松手前
+      dragCoalescer.flushNow()
+      disarmDragDeadman()
       dragState = null
       break
     case 'update': {
       if (!dragState) break
-      const dx = Math.round(action.dx ?? 0)
-      const dy = Math.round(action.dy ?? 0)
-      // 锁定态只许移动（ui-polish-followups 工单 07）：收到缩放帧整帧跳过——不写窗口、也不记意图值。
-      // 判据是**现读**设置，所以拖动中途被锁（快捷键）也能立刻停住。
-      const next = applyWindowDrag(dragState.base, dragState, dx, dy, global.lx.appSetting['desktopLyric.isLock'])
-      if (!next) break
-      const bounds = clampWindowBoundsToWorkArea(
-        next,
-        global.lx.appSetting['desktopLyric.isLockScreen'] ? global.envParams.workAreaSize : null,
-      )
-      keepIntendedBounds(bounds)
-      setBounds(bounds)
+      armDragDeadman()
+      dragCoalescer.push(action)
       break
     }
   }
