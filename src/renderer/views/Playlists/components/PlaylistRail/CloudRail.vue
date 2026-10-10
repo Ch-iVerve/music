@@ -5,28 +5,6 @@
        「带封面」只做在**新建**上（封面直传 COS 后随 AddPlaylist 一起提交）：
        改已有歌单封面的端点实测不可用，见 useCloudLists.ts 的注释与 tx/songList.js。 -->
   <div :class="$style.lists">
-    <div :class="$style.listHeader">
-      <h2 :class="$style.listsTitle">{{ $t('playlists__cloud_group') }}</h2>
-      <div :class="$style.headerBtns">
-        <button :class="$style.listsAdd" :aria-label="$t('playlists__cloud_new')" :title="$t('playlists__cloud_new')" @click="isShowNewCloudList = true">
-          <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" height="70%" viewBox="0 0 24 24" space="preserve">
-            <use xlink:href="#icon-list-add" />
-          </svg>
-        </button>
-        <!-- 带封面新建：先选图（系统文件框），再在下面的输入行里起名。
-             封面只能在"新建时"给——改已有歌单封面的端点实测不可用，见 useCloudLists.ts 的注释 -->
-        <button
-          :class="$style.listsAdd" :aria-label="$t('playlists__cloud_new_with_cover')" :title="$t('playlists__cloud_new_with_cover')"
-          @click="$refs.dom_coverPicker.click()"
-        >
-          <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" height="70%" viewBox="0 0 24 24" space="preserve">
-            <use xlink:href="#icon-list-add-cover" />
-          </svg>
-        </button>
-      </div>
-    </div>
-    <!-- 隐藏的文件选择器：由上面那个按钮唤起（`.coverPicker` 是 display:none，不占布局） -->
-    <input ref="dom_coverPicker" :class="$style.coverPicker" type="file" accept="image/png,image/jpeg,image/gif,image/webp" @change="handleCoverPicked">
     <ul class="scroll" :class="$style.listsContent">
       <li v-if="cloudLists.length === 0 && !isShowNewCloudList" :class="$style.railTip">
         <span v-text="cloudListsLabel" />
@@ -38,11 +16,6 @@
         :aria-label="item.name" @contextmenu="handleCloudItemRigthClick($event, item)" @click="handleSelect(String(item.dirId))"
       >
         <span :class="$style.listsLabel" :title="item.name">
-          <span :class="$style.markerSlot">
-            <transition name="list-active">
-              <svg-icon v-if="String(item.dirId) == cloudDirId" name="angle-right-solid" :class="$style.activeIcon" />
-            </transition>
-          </span>
           <!-- 封面来自卡片的 `img`（`getCreatedSonglist` 的 logo / picUrl）；空或加载失败时组件内部落占位图 -->
           <playlist-cover :src="item.img" />
           <span :class="$style.listsName">{{ item.name }}</span>
@@ -63,14 +36,28 @@
       </transition>
     </ul>
 
+    <!-- 底部常驻动作条（票 13）：新建歌单外显；普通/带封面两种建法走小菜单 -->
+    <div :class="$style.listFooter">
+      <button :class="$style.newListBtn" @click="isShowCloudNewMenu = !isShowCloudNewMenu">
+        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" :class="$style.newListIcon" viewBox="0 0 24 24" space="preserve">
+          <use xlink:href="#icon-list-add" />
+        </svg>
+        <span>{{ $t('lists__new_list_btn') }}</span>
+      </button>
+    </div>
+    <base-menu v-model="isShowCloudNewMenu" :menus="cloudNewMenus" :xy="cloudNewMenuLocation" item-name="name" @menu-click="handleCloudNewMenuClick" />
+    <!-- 隐藏的文件选择器：带封面建走它（`.coverPicker` 是 display:none，不占布局） -->
+    <input ref="dom_coverPicker" :class="$style.coverPicker" type="file" accept="image/png,image/jpeg,image/gif,image/webp" @change="handleCoverPicked">
+
     <!-- 右键删除云端歌单（含二次确认） -->
     <base-menu v-model="isShowCloudMenu" :menus="cloudMenus" :xy="cloudMenuLocation" item-name="name" @menu-click="handleCloudMenuClick" />
   </div>
 </template>
 
 <script lang="ts">
-import { toRef } from '@common/utils/vueTools'
+import { ref, shallowReactive, toRef } from '@common/utils/vueTools'
 import { type TabId } from '../../tabs'
+import { useI18n } from '@renderer/plugins/i18n'
 import PlaylistCover from './PlaylistCover.vue'
 import useCloudLists from './useCloudLists'
 
@@ -98,8 +85,28 @@ export default {
     },
   },
   setup(props: { cloudDirId: string, tab: TabId }) {
+    // 底部「＋新建歌单」的两种建法（票 13）：普通 / 带封面（封面只在新建时能给，见文件头注释）
+    const t = useI18n()
+    const dom_coverPicker = ref<HTMLInputElement | null>(null)
+    const isShowCloudNewMenu = ref(false)
+    const cloudNewMenuLocation = shallowReactive({ x: 0, y: 0 })
+    const cloudNewMenus = [
+      { name: t('playlists__cloud_new'), action: 'plain' },
+      { name: t('playlists__cloud_new_with_cover'), action: 'cover' },
+    ]
+    // 只实例化一次：点击处理器复用同一份状态（重复调用会造出第二份 ref，改动就落空了）
+    const cloud = useCloudLists({ cloudDirId: toRef(props, 'cloudDirId'), tab: toRef(props, 'tab') })
+    const handleCloudNewMenuClick = (action: string) => {
+      if (action == 'plain') cloud.isShowNewCloudList.value = true
+      else if (action == 'cover') dom_coverPicker.value?.click()
+    }
     return {
-      ...useCloudLists({ cloudDirId: toRef(props, 'cloudDirId'), tab: toRef(props, 'tab') }),
+      ...cloud,
+      dom_coverPicker,
+      isShowCloudNewMenu,
+      cloudNewMenuLocation,
+      cloudNewMenus,
+      handleCloudNewMenuClick,
     }
   },
 }

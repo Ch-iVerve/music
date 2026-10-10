@@ -1,26 +1,25 @@
 <template>
   <div :class="$style.container">
     <div :class="$style.toolbar">
-      <span :class="$style.count">{{ $t('playlists__library_count', { num: tracks.length }) }}</span>
       <base-input
         v-model="query"
         :class="$style.search"
         type="text"
         :placeholder="$t('playlists__library_search')"
       />
-      <base-btn :class="$style.importBtn" :disabled="importing" @click="handleRescan">{{ $t('playlists__rescan') }}</base-btn>
-      <base-btn :disabled="importing" @click="handleImportFolder">{{ $t('playlists__import_folder') }}</base-btn>
-    </div>
-
-    <!-- 分组胶囊（票 05）：点谁按谁分组，「全部」=不分组；一次只激活一个 -->
-    <div :class="$style.capsules">
-      <button
-        v-for="capsule in capsules"
-        :key="`${capsule.dim}`"
-        :class="[$style.capsule, { [$style.active]: dim == capsule.dim }]"
-        :aria-pressed="dim == capsule.dim"
-        @click="handleDimChange(capsule.dim)"
-      >{{ capsule.label }}</button>
+      <!-- 分组胶囊与搜索同行（票 13）：胶囊可横向滚动，右侧动作常驻 -->
+      <div :class="$style.capsules">
+        <button
+          v-for="capsule in capsules"
+          :key="`${capsule.dim}`"
+          :class="[$style.capsule, { [$style.active]: dim == capsule.dim }]"
+          :aria-pressed="dim == capsule.dim"
+          @click="handleDimChange(capsule.dim)"
+        >{{ capsule.label }}</button>
+      </div>
+      <span :class="$style.count">{{ tracks.length }}</span>
+      <base-btn min :disabled="importing" @click="handleRescan">{{ $t('playlists__rescan') }}</base-btn>
+      <base-btn :class="$style.importBtn" :disabled="importing" @click="handleImportFolder">{{ $t('playlists__import_folder') }}</base-btn>
     </div>
 
     <div v-if="!rows.length" :class="$style.empty">{{ $t('playlists__library_empty') }}</div>
@@ -28,7 +27,7 @@
       v-else
       ref="dom_list"
       :list="rows"
-      :item-height="40"
+      :item-height="44"
       key-name="key"
       :class="$style.list"
     >      <template #default="{ item }">
@@ -59,6 +58,15 @@
           <span :class="$style.singer" :title="item.track.singer">{{ item.track.singer }}</span>
           <span :class="$style.album" :title="item.track.album">{{ item.track.album }}</span>
           <span :class="$style.interval">{{ item.track.interval }}</span>
+          <!-- 行尾浮现动作（票 13）：播放 / 编辑信息 -->
+          <span :class="$style.rowActions">
+            <button :class="$style.rowActionBtn" :aria-label="$t('list__play')" :title="$t('list__play')" @click.stop="handlePlay(item.playIndex)">
+              <svg-icon name="play-outline" :class="$style.rowActionIcon" />
+            </button>
+            <button :class="$style.rowActionBtn" :aria-label="$t('playlists__edit_title')" :title="$t('playlists__edit_title')" @click.stop="handleEdit(item.track)">
+              <svg-icon name="tune-variant" :class="$style.rowActionIcon" />
+            </button>
+          </span>
         </div>
       </template>
     </virtualized-list>
@@ -230,6 +238,12 @@ export default {
       if (action == 'edit') showEdit.value = true
     }
 
+    // 行尾浮现的「编辑」快捷键（票 13）：与右键菜单的编辑同一弹窗
+    const handleEdit = (track) => {
+      editTrack.value = track
+      showEdit.value = true
+    }
+
     // 歌词编辑器（票 09）：从信息编辑弹窗跳入；保存后重拉列表（hasLyric/size 变化）
     const showLyric = ref(false)
     const lyricTrack = ref(null)
@@ -249,6 +263,7 @@ export default {
       rows,
       importing,
       isMediaPathMissing,
+      handleEdit,
       showRescan,
       rescanReport,
       isShowItemMenu,
@@ -287,31 +302,33 @@ export default {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   padding: 0 0 8px;
 }
 
 .count {
   flex: none;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--color-font-label);
+  font-variant-numeric: tabular-nums;
 }
 
 .search {
-  flex: 1;
-  max-width: 260px;
-}
-
-.import-btn {
-  margin-left: auto;
+  flex: none;
+  width: 200px;
 }
 
 .capsules {
-  flex: none;
+  flex: 1;
+  min-width: 0;
   display: flex;
-  flex-wrap: wrap;
   gap: 6px;
-  padding: 0 0 10px;
+  overflow-x: auto;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .capsule {
@@ -388,24 +405,60 @@ export default {
 }
 
 .row {
-  height: 40px;
+  height: 44px;
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 0 10px;
-  font-size: 13px;
   cursor: default;
 
   &:hover {
     background-color: var(--color-primary-background);
+
+    .row-actions {
+      opacity: 1;
+    }
   }
+}
+
+.row-actions {
+  flex: none;
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity @transition-normal;
+}
+
+.row-action-btn {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: @radius-border;
+  background-color: transparent;
+  color: var(--color-font-label);
+  cursor: pointer;
+
+  &:hover {
+    color: var(--color-theme);
+    background-color: var(--color-primary-background-hover);
+  }
+}
+
+.row-action-icon {
+  width: 14px;
+  height: 14px;
 }
 
 .num {
   flex: none;
   width: 28px;
   text-align: right;
+  font-size: 12px;
   color: var(--color-font-label);
+  font-variant-numeric: tabular-nums;
 }
 
 .name {
@@ -414,6 +467,7 @@ export default {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 13px;
   color: var(--color-font);
 }
 
@@ -424,6 +478,7 @@ export default {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 12px;
   color: var(--color-font-label);
 }
 
@@ -431,7 +486,9 @@ export default {
   flex: none;
   width: 44px;
   text-align: right;
+  font-size: 12px;
   color: var(--color-font-label);
+  font-variant-numeric: tabular-nums;
 }
 
 .missing {

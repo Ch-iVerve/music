@@ -1,33 +1,14 @@
 <template>
   <div ref="dom_lists" :class="$style.lists">
-    <div :class="$style.listHeader">
-      <h2 :class="$style.listsTitle">{{ $t('playlists__local_group') }}</h2>
-      <div :class="$style.headerBtns">
-        <button :class="$style.listsAdd" :aria-label="$t('lists__new_list_btn')" :title="$t('lists__new_list_btn')" @click="isShowNewList = true">
-          <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" height="70%" viewBox="0 0 24 24" space="preserve">
-            <use xlink:href="#icon-list-add" />
-          </svg>
-        </button>
-        <button :class="$style.listsAdd" :aria-label="$t('list_update_modal__title')" :title="$t('list_update_modal__title')" @click="isShowListUpdateModal = true">
-          <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" style="transform: rotate(45deg);" height="70%" viewBox="0 0 24 24" space="preserve">
-            <use xlink:href="#icon-refresh" />
-          </svg>
-        </button>
-      </div>
-    </div>
     <ul ref="dom_lists_list" class="scroll" :class="[$style.listsContent, { [$style.sortable]: isModDown }]">
-      <!-- 「全部本地音乐」固定节点（票 03）：不是歌单，是库聚合视图的选择器；永远在自建列表上方 -->
+      <!-- 「全部本地音乐」固定节点（票 03）：不是歌单，是库聚合视图的选择器；行尾带数量徽标 -->
       <li
-        :class="[$style.listsItem, $style.libraryNode, {[$style.active]: listId == libraryNodeId}]"
+        :class="[$style.listsItem, {[$style.active]: listId == libraryNodeId}]"
         :aria-label="$t('playlists__local_library')" :aria-selected="listId == libraryNodeId"
       >
         <span :class="$style.listsLabel" :title="$t('playlists__local_library')" @click="handleListToggle(libraryNodeId)">
-          <span :class="$style.markerSlot">
-            <transition name="list-active">
-              <svg-icon v-if="listId == libraryNodeId" name="angle-right-solid" :class="$style.activeIcon" />
-            </transition>
-          </span>
           <span :class="$style.listsName">{{ $t('playlists__local_library') }}</span>
+          <span v-if="libraryCount > 0" :class="$style.rowCount">{{ libraryCount }}</span>
         </span>
       </li>
       <li v-if="userLists.length === 0 && !isShowNewList" :class="$style.railTip">
@@ -39,16 +20,15 @@
         :class="[$style.listsItem, {[$style.active]: item.id == listId}, {[$style.clicked]: rightClickItemIndex == index}, {[$style.fetching]: fetchingListStatus[item.id]}]"
         :data-index="index" :aria-label="item.name" :aria-selected="item.id == listId" @contextmenu="handleListsItemRigthClick($event, index)"
       >
-        <!-- 本地自建列表没有封面字段（`userLists` 是本地库的列表，不是 QQ 卡片）→ 固定走占位图 -->
+        <!-- 紧凑行（票 13）：无封面无三角槽；行尾「⋯」外显高频动作，右键菜单照旧全量保留 -->
         <span :class="$style.listsLabel" :title="item.name" @click="handleListToggle(item.id)">
-          <span :class="$style.markerSlot">
-            <transition name="list-active">
-              <svg-icon v-if="item.id == listId" name="angle-right-solid" :class="$style.activeIcon" />
-            </transition>
-          </span>
-          <playlist-cover />
           <span :class="$style.listsName">{{ item.name }}</span>
         </span>
+        <button
+          :class="$style.rowMore"
+          :aria-label="$t('playlists__more')" :title="$t('playlists__more')"
+          @click.stop="handleRowMore($event, index)"
+        >⋯</button>
         <base-input
           :class="$style.listsInput" type="text" :value="item.name"
           :placeholder="item.name" @keyup.enter="handleSaveListName(index, $event)" @blur="handleSaveListName(index, $event)"
@@ -64,7 +44,28 @@
       </transition>
     </ul>
 
+    <!-- 底部常驻动作条（票 13）：新建歌单外显为文字按钮；列表更新降为弱化图标 -->
+    <div :class="$style.listFooter">
+      <button :class="$style.newListBtn" @click="isShowNewList = true">
+        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" :class="$style.newListIcon" viewBox="0 0 24 24" space="preserve">
+          <use xlink:href="#icon-list-add" />
+        </svg>
+        <span>{{ $t('lists__new_list_btn') }}</span>
+      </button>
+      <button
+        :class="$style.footerGhostBtn"
+        :aria-label="$t('list_update_modal__title')" :title="$t('list_update_modal__title')"
+        @click="isShowListUpdateModal = true"
+      >
+        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" height="70%" viewBox="0 0 24 24" space="preserve">
+          <use xlink:href="#icon-refresh" />
+        </svg>
+      </button>
+    </div>
+
     <base-menu v-model="isShowMenu" :menus="menus" :xy="menuLocation" item-name="name" @menu-click="handleMenuClick" />
+    <!-- 行尾「⋯」的常用动作子集（票 13）：动作名与右键菜单同一套 case，处理器完全复用 -->
+    <base-menu v-model="isShowRowMoreMenu" :menus="rowMoreMenus" :xy="rowMoreMenuLocation" item-name="name" @menu-click="handleMenuClick" />
     <!-- 导出向导（票 11）：JSON / m3u8 / 复制音频文件三选勾 -->
     <library-export-modal :show="showExportWizard" :list-info="wizardListInfo" :musics="wizardMusics" @close="showExportWizard = false" />
     <DuplicateMusicModal v-model:visible="isShowDuplicateMusicModal" :list-info="duplicateListInfo" />
@@ -78,16 +79,16 @@ import { openUrl, clipboardWriteText } from '@common/utils/electron'
 import { LIST_IDS } from '@common/constants'
 
 import musicSdk from '@renderer/utils/musicSdk'
-import PlaylistCover from './PlaylistCover.vue'
 import DuplicateMusicModal from './components/DuplicateMusicModal.vue'
 import ListSortModal from './components/ListSortModal.vue'
 import ListUpdateModal from './components/ListUpdateModal.vue'
 
 import { userLists, fetchingListStatus } from '@renderer/store/list/state'
 import { removeUserList, getListMusics } from '@renderer/store/list/action'
+import { localLibraryGetAll } from '@renderer/utils/ipc'
 import LibraryExportModal from '../LibraryExportModal.vue'
 
-import { ref, watch } from '@common/utils/vueTools'
+import { computed, onBeforeUnmount, ref, shallowReactive, watch } from '@common/utils/vueTools'
 import { useRoute, useRouter } from '@common/utils/vueRouter'
 import { withTab } from '../../tabs'
 
@@ -119,7 +120,6 @@ import useDuplicate from './useDuplicate'
 export default {
   name: 'PlaylistRailLocal',
   components: {
-    PlaylistCover,
     DuplicateMusicModal,
     ListSortModal,
     ListUpdateModal,
@@ -145,6 +145,34 @@ export default {
     const rightClickItemIndex = ref(-10)
 
     const { handleImportList, handleExportList } = useShare()
+
+    // 行尾「⋯」常用菜单（票 13）：动作名与右键菜单同一套 case，处理器完全复用 handleMenuClick
+    const isShowRowMoreMenu = ref(false)
+    const rowMoreMenuLocation = shallowReactive({ x: 0, y: 0 })
+    const rowMoreMenus = computed(() => ([
+      { name: t('lists__select_local_file'), action: 'local_file' },
+      { name: t('playlists__export_wizard'), action: 'export_wizard' },
+      { name: t('lists__export'), action: 'export' },
+      { name: t('lists__duplicate'), action: 'duplicate' },
+      { name: t('lists__remove'), action: 'remove' },
+    ]))
+    const handleRowMore = (event, index) => {
+      rightClickItemIndex.value = index
+      rowMoreMenuLocation.x = event.clientX
+      rowMoreMenuLocation.y = event.clientY
+      isShowRowMoreMenu.value = true
+    }
+
+    // 「全部本地音乐」节点徽标（票 13）：曲库数量随导入/删除同步
+    const libraryCount = ref(0)
+    const refreshLibraryCount = async() => {
+      libraryCount.value = (await localLibraryGetAll()).length
+    }
+    void refreshLibraryCount()
+    window.app_event.on('myListUpdate', refreshLibraryCount)
+    onBeforeUnmount(() => {
+      window.app_event.off('myListUpdate', refreshLibraryCount)
+    })
 
     // 导出向导（票 11）：快照歌单条目进弹窗（导出只读，无并发问题）
     const showExportWizard = ref(false)
@@ -289,6 +317,11 @@ export default {
       showExportWizard,
       wizardListInfo,
       wizardMusics,
+      isShowRowMoreMenu,
+      rowMoreMenuLocation,
+      rowMoreMenus,
+      handleRowMore,
+      libraryCount,
     }
   },
 }

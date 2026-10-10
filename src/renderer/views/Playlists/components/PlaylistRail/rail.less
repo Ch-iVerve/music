@@ -1,21 +1,12 @@
-// 歌单左栏两组（本地组 / 云端组）**共用**的样式：拆成 LocalRail / CloudRail 两个组件后，
-// 两边的行、头、输入框样式必须一模一样，所以抽到这里由两个组件各自 `@import`。
+// 歌单左栏（本地组 / 云端组）**共用**样式——页面重组版（playlists-ui-redesign 票 01）：
+// 紧凑行（32px、无封面占位、无三角槽）、无组头、底部常驻「＋新建歌单」、行尾 hover 外显「⋯」。
+// 云端行保留真封面（22px 小图），所以封面相关类只给云端用（本地不再引用）。
 // ⚠️ 这里是 CSS modules 的局部样式（每个组件各自 mangle 一份），不是全局样式——别挪进 assets/styles。
-//
-// 原来的两份「按位置分高度」规则（`.listsContent:first-of-type / :last-of-type`）随 tab 拆分取消：
-// 现在一个面板里只有一组，列表直接吃满左栏剩余高度。
 @import '@renderer/assets/styles/layout.less';
 
-@lists-item-height: 36px;
-// 行首三角的常驻占位宽度：`.9em`（13px 字号下 ≈ 11.7px）取整 + 一点余量。
-// **常驻**是关键——三角只在选中时渲染，占位不常驻的话封面会随着选中横移 12px
-@lists-marker-width: 12px;
+@lists-item-height: 32px;
 .lists {
   flex: none;
-  // 16% → 21%（工单 07）：行里多了封面（26px）、常驻三角槽（12px）与几处间距，名字的可用宽度
-  // 靠这部分补回来。21% 是量出来的（真 Chromium 两版 rail.less 对量，现场 /tmp/pl-covers/probe.py）：
-  // 名字可用宽度 828 档 88.0px（改前 88.16，持平）、920 档 106（改前 102.16）、
-  // 1400 档 200（改前 174.16）；代价是右栏让出 ~36px（828 档 600 → 564）
   width: 21%;
   display: flex;
   flex-flow: column nowrap;
@@ -25,7 +16,6 @@
   min-width: 0;
   min-height: 0;
   overflow-y: scroll !important;
-  // border-right: 1px solid rgba(0, 0, 0, 0.12);
 
   &.sortable {
     * {
@@ -49,65 +39,42 @@
   color: var(--color-font-label);
   .mixin-ellipsis-2();
 }
-.listHeader {
-  position: relative;
-  display: flex;
-  flex-flow: row nowrap;
-  border-bottom: var(--color-list-header-border-bottom);
-  &:hover {
-    .listsAdd {
-      opacity: 1;
-    }
-  }
-}
-.listsTitle {
-  flex: auto;
-  font-size: 12px;
-  line-height: 38px;
-  padding: 0 10px;
-  .mixin-ellipsis-1();
-}
-.headerBtns {
-  flex: none;
-  display: flex;
-}
-.listsAdd {
-  // position: absolute;
-  // right: 0;
-  margin-top: 6px;
-  background: none;
-  height: 30px;
-  border: none;
-  outline: none;
-  border-radius: @radius-border;
-  cursor: pointer;
-  opacity: .1;
-  transition: opacity @transition-normal;
-  color: var(--color-button-font);
-  svg {
-    vertical-align: bottom;
-  }
-  &:active {
-    opacity: .7 !important;
-  }
-  &:hover {
-    opacity: .6 !important;
-  }
-}
 .listsItem {
   position: relative;
-  transition: .3s ease;
+  transition: .2s ease;
   transition-property: color, background-color, opacity;
   background-color: transparent;
+  // 选中态的左侧主题色条（取代旧「三角图标 + 常驻槽位」方案）
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 6px;
+    bottom: 6px;
+    width: 2px;
+    border-radius: 1px;
+    background-color: transparent;
+  }
   &:not(.active) {
     &:hover {
       background-color: var(--color-primary-background-hover);
       cursor: pointer;
+
+      .rowMore {
+        opacity: 1;
+      }
     }
   }
   &.active {
-    // background-color:
     color: var(--color-primary);
+
+    &::before {
+      background-color: var(--color-primary);
+    }
+    // 选中行也外显 ⋯（鼠标未必悬停——键盘/触屏用户同样要够得着）
+    .rowMore {
+      opacity: .7;
+    }
   }
   &.selected {
     background-color: var(--color-primary-font-active);
@@ -129,52 +96,69 @@
     }
   }
 }
-.activeIcon {
-  height: .9em;
-  width: .9em;
-  vertical-align: -0.05em;
-}
-// 三角的槽位：常驻（选中与否都占位），所以封面 / 名字不会因为选中而横移。
-// 负外边距是老写法（把三角拉进 .listsLabel 的 10px 内边距里），进 flex 后不需要了
-.markerSlot {
-  flex: none;
-  width: @lists-marker-width;
-  display: flex;
-  align-items: center;
-}
 .listsLabel {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   height: @lists-item-height;
-  padding: 0 8px 0 4px;
+  padding: 0 4px 0 10px;
   font-size: 13px;
-  // cursor 仍由 `.listsItem` 管（选中项不显示手型，是老口径，别在这里覆盖）
+  min-width: 0;
 }
-// 名字的省略号必须落在**这个**子项上：`.listsLabel` 现在是 flex 容器，
-// 容器自己设 ellipsis 不生效
+// 行内小封面（云端真封面）：22px，弱化到「识别用」而不是「装饰用」
+.listsCover {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: @radius-border;
+  object-fit: cover;
+}
 .listsName {
   flex: auto;
   min-width: 0;
   .mixin-ellipsis-1();
 }
+// 行尾数量徽标（全部本地音乐等）
+.rowCount {
+  flex: none;
+  font-size: 11px;
+  color: var(--color-font-label);
+  font-variant-numeric: tabular-nums;
+}
+// 行尾「⋯」：hover / 选中时浮现，点开该歌单的常用动作菜单
+.rowMore {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  line-height: 20px;
+  text-align: center;
+  border: none;
+  border-radius: @radius-border;
+  background-color: transparent;
+  color: var(--color-font-label);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity @transition-normal;
+  font-size: 13px;
+  letter-spacing: 1px;
+
+  &:hover {
+    color: var(--color-font);
+    background-color: var(--color-primary-background);
+  }
+}
 .listsInput {
   width: 100%;
   height: @lists-item-height;
-  // border: none;
   padding: 0;
-  // padding-bottom: 1px;
   line-height: @lists-item-height;
   background: none !important;
   border-radius: 0;
-  // outline: none;
   font-size: 13px;
   display: none;
-  // font-family: inherit;
 }
 
 .listsNew {
-  // flex：让「封面缩略图 + 名字输入」同排（缩略图只在选了封面时出现）
   display: flex;
   align-items: center;
   gap: 6px;
@@ -182,17 +166,16 @@
   background-color: var(--color-primary-background-hover) !important;
   .listsInput {
     display: block;
-    // 与缩略图同排时宽度交给 flex：`.listsInput` 自己的 `width: 100%` 在 flex 行里会撑破行
     flex: auto;
     min-width: 0;
     width: auto;
   }
 }
-// 新建行里的封面缩略图：尺寸与行首封面一致（26px / @radius-border），点它 = 去掉封面
+// 新建行里的封面缩略图（云端带封面建）：尺寸与行首封面一致，点它 = 去掉封面
 .listsNewCover {
   flex: none;
-  width: 26px;
-  height: 26px;
+  width: 22px;
+  height: 22px;
   border-radius: @radius-border;
   object-fit: cover;
   cursor: pointer;
@@ -204,4 +187,56 @@
 .newLeave {
   margin-top: -@lists-item-height;
   z-index: -1;
+}
+// 底部常驻动作条：＋新建歌单（左）+ 列表更新（右，弱化图标）
+.listFooter {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-top: 1px solid var(--color-primary-background);
+}
+.newListBtn {
+  flex: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border: none;
+  border-radius: @radius-border;
+  background-color: transparent;
+  font-size: 13px;
+  color: var(--color-font-label);
+  cursor: pointer;
+  text-align: left;
+
+  &:hover {
+    color: var(--color-font);
+    background-color: var(--color-primary-background-hover);
+  }
+}
+.newListIcon {
+  width: 13px;
+  height: 13px;
+}
+.footerGhostBtn {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: @radius-border;
+  background-color: transparent;
+  color: var(--color-font-label);
+  cursor: pointer;
+  opacity: .7;
+
+  &:hover {
+    color: var(--color-font);
+    background-color: var(--color-primary-background-hover);
+    opacity: 1;
+  }
+  svg {
+    vertical-align: bottom;
+  }
 }
