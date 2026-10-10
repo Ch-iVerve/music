@@ -6,17 +6,6 @@
       <p v-if="isEmpty" :class="$style.none">{{ $t('playlists__rescan_none') }}</p>
 
       <template v-else>
-        <section v-if="report.junk.length" :class="[$style.section, $style.junkSection]">
-          <div :class="$style.sectionHead">
-            <span :class="$style.sectionTitle">{{ $t('playlists__rescan_junk') }}</span>
-            <span :class="$style.sectionCount">{{ report.junk.length }}</span>
-            <base-btn min @click="handleCleanJunk">{{ $t('playlists__rescan_junk_remove') }}</base-btn>
-          </div>
-          <ul class="scroll" :class="$style.list">
-            <li v-for="p in report.junk" :key="p" :class="$style.item" :title="p">{{ fileName(p) }}</li>
-          </ul>
-        </section>
-
         <section :class="$style.section">
           <div :class="$style.sectionHead">
             <span :class="$style.sectionTitle">{{ $t('playlists__rescan_orphans') }}</span>
@@ -91,26 +80,13 @@ export default {
   emits: ['close', 'changed'],
   setup(props, { emit }) {
     const isEmpty = computed(() => !props.report ||
-      (props.report.orphans.length + props.report.missing.length + props.report.mismatched.length + props.report.junk.length) === 0)
+      (props.report.orphans.length + props.report.missing.length + props.report.mismatched.length) === 0)
 
     const fileName = p => p.split(/\/|\\/).at(-1)
 
     const handleAdopt = async() => {
       const added = await adoptOrphanFiles(props.report.orphans)
       if (added) emit('changed')
-    }
-
-    // 垃圾条目（macOS `._*` 旧导入噪声）：托管副本是纯垃圾元数据，**记录+文件一起删**（原始文件不在话下）
-    const handleCleanJunk = async() => {
-      const confirm = await dialog.confirm({
-        message: window.i18n.t('playlists__rescan_junk_confirm', { num: props.report.junk.length }),
-        confirmButtonText: window.i18n.t('playlists__rescan_junk_remove'),
-        cancelButtonText: window.i18n.t('lists__import_part_button_cancel'),
-      })
-      if (!confirm) return
-      await deleteOrphanFiles(props.report.junk)
-      await removeLibraryTracksByPath(props.report.junk)
-      emit('changed')
     }
 
     const handleClean = async() => {
@@ -140,7 +116,6 @@ export default {
       fileName,
       handleAdopt,
       handleClean,
-      handleCleanJunk,
       handleRemove,
     }
   },

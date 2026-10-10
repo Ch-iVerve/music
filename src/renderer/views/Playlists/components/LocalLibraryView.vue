@@ -90,6 +90,7 @@ import LibraryLyricModal from './LibraryLyricModal.vue'
 import { LIST_IDS } from '@common/constants'
 import { getEnvParams, localLibraryGetAll, showSelectDialog } from '@renderer/utils/ipc'
 import {
+  autoCleanJunk,
   buildLocalEntry,
   importFolderToNewList,
   reconcileLibrary,
@@ -178,6 +179,9 @@ export default {
     }
 
     const load = async() => {
+      // 垃圾条目自动清（票 14）：静默移除 macOS `._*` 误导入的噪声（记录+歌单引用+垃圾副本），
+      // 再拉全量——用户永远看不到垃圾行
+      await autoCleanJunk().catch(err => { console.log('[localLibrary] 垃圾清理失败:', err) })
       tracks.value = await localLibraryGetAll()
       // 失效核对（票 06）：打开库即异步核对，标记是响应式的（scoped slot 追踪），丢了会在行上出现徽标
       void checkAvailability(tracks.value.map(track => `${mediaDir.value}/${track.id}.${track.ext}`))

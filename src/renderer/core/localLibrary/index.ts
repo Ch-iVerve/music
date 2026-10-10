@@ -227,6 +227,25 @@ export const saveTrackEdits = async(
   })
 }
 
+/**
+ * 自动清理垃圾条目（票 14 真机反馈：macOS `._*` 元数据文件曾被旧版导入成噪声曲目）。
+ *
+ * 判定无歧义（曲名 `._` 前缀），所以**静默自动清**：删托管垃圾副本 + 删记录（级联清歌单引用），
+ * 不出确认、不出报告——打开库的加载路径里先跑这一步，用户永远看不到垃圾条目。
+ * 返回清理数量（0 = 没有垃圾，调用方无感）。
+ */
+export const autoCleanJunk = async(): Promise<number> => {
+  const tracks = await localLibraryGetAll()
+  const junk = tracks.filter(track => track.name.startsWith('._'))
+  if (!junk.length) return 0
+  const { mediaDir } = await getEnvParams()
+  await window.lx.worker.main.deleteOrphanFiles(
+    junk.map(track => path.join(mediaDir, `${track.id}.${track.ext}`)),
+  )
+  await localLibraryRemove(junk.map(track => track.id))
+  return junk.length
+}
+
 /** 歌词编辑的初始信息（文件内歌词文本 + 托管路径） */
 export const loadTrackLyricsInfo = async(track: LX.LocalLibrary.Track): Promise<{
   lyricsText: string | null
