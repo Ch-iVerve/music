@@ -12,6 +12,7 @@
     <layout-sync-auth-code-modal />
     <layout-qq-login-modal />
     <layout-play-detail />
+    <drop-import-overlay />
   </div>
 </template>
 
@@ -20,8 +21,11 @@ import { onMounted } from '@common/utils/vueTools'
 // import BubbleCursor from '@common/utils/effects/cursor-effects/bubbleCursor'
 // import '@common/utils/effects/snow.min'
 import useApp from '@renderer/core/useApp'
+import DropImportOverlay from '@renderer/components/common/DropImportOverlay.vue'
+import { installDragImport } from '@renderer/core/localLibrary/dragImport'
 
 useApp()
+installDragImport()
 
 onMounted(() => {
   document.getElementById('root').style.display = 'block'

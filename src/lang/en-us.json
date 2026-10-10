@@ -433,6 +433,8 @@
   "playlists__import_folder": "Import Folder…",
   "playlists__library_count": "{num} songs",
   "playlists__library_empty": "The library is empty — use \"Import Folder\" to bring your music in",
+  "playlists__drop_import_hint": "Drop to import into your library",
+  "playlists__imported_songs": "Imported Songs",
   "program__back_hot": "Back to popular",
   "program__episode_count": "{num} episodes",
   "program__hot_title": "Popular shows",
