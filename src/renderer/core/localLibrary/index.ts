@@ -1,6 +1,6 @@
 import path from 'node:path'
 import { ref } from '@common/utils/vueTools'
-import { addListMusics, getListMusics } from '@renderer/store/list/action'
+import { addListMusics, createUserList, getListMusics } from '@renderer/store/list/action'
 import { getEnvParams, localLibraryAdd, localLibraryGetAll } from '@renderer/utils/ipc'
 import { proxyCallback } from '@renderer/worker/utils'
 import type { LocalIngestProgress } from '@renderer/worker/main/library'
@@ -45,7 +45,7 @@ export const closeLocalImport = () => {
 type EntrySource = Pick<LX.LocalLibrary.Track, 'id' | 'name' | 'singer' | 'album' | 'interval' | 'ext'>
 
 /** 库曲目 → 歌单本地条目（spec D4：id=哈希、meta.filePath=托管路径、meta.trackId=哈希） */
-const buildLocalEntry = (track: EntrySource, mediaDir: string): LX.Music.MusicInfoLocal => ({
+export const buildLocalEntry = (track: EntrySource, mediaDir: string): LX.Music.MusicInfoLocal => ({
   id: track.id,
   name: track.name,
   singer: track.singer,
@@ -112,4 +112,28 @@ export const importLocalFilesToList = async(listId: string, filePaths: string[])
     console.log('[localLibrary.import] 导入失败:', err)
     finished.value = { added: 0, skipped: 0, failed: [String(err)], cancelled: false }
   }
+}
+
+/** 展示一个即时汇总（不跑管线的场景：空目录等） */
+const showSummary = (summary: LocalImportSummary) => {
+  cancelFlag.value = false
+  progress.value = null
+  finished.value = summary
+  visible.value = true
+}
+
+/**
+ * 整夹导入（票 03）：递归扫描目录 → 以目录名建歌单 → 走同一托管编排（importLocalFilesToList）。
+ * 空目录不建歌单，直接给全零汇总（用户在弹窗里看到「新增 0」而不是毫无反馈）。
+ */
+export const importFolderToNewList = async(folderPath: string): Promise<void> => {
+  if (visible.value || !folderPath) return
+  const files = await window.lx.worker.main.scanAudioFolder(folderPath)
+  if (!files.length) {
+    showSummary({ added: 0, skipped: 0, failed: [], cancelled: false })
+    return
+  }
+  const listId = `userlist_${Date.now()}`
+  await createUserList({ name: path.basename(folderPath) || folderPath, id: listId })
+  await importLocalFilesToList(listId, files)
 }

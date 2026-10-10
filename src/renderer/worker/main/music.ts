@@ -1,35 +1,24 @@
 import { getLocalMusicFileLyric, getLocalMusicFilePic } from '@renderer/utils/music'
-import path from 'node:path'
-import os from 'node:os'
-import fs from 'node:fs/promises'
-import { checkPath } from '@common/utils/nodejs'
 
-const getTempDir = async() => {
-  // 解出的歌词/封面中转目录。名字 2026-09-24 从上游的 `lxmusic_temp` 换成本产品的——
-  // 它是全仓唯一拿上游名字当**文件系统路径**的地方，装过上游版时两边会共用同一个 /tmp 子目录。
-  // 换名只影响中转：老目录里残留的临时文件不会被清理，但也没有别的引用方。
-  const tempDir = path.join(os.tmpdir(), 'chiverve-music_temp')
-  if (!await checkPath(tempDir)) {
-    await fs.mkdir(tempDir, { recursive: true })
-  }
-  return tempDir
-}
-
+/**
+ * 封面中转的**临时文件机制已废弃**（本地媒体库票 03，spec D2 零旁车）：
+ * 过去内嵌封面 >400KB 会写 `/tmp/chiverve-music_temp/` 再以文件路径喂给 `<img>`——
+ * 该目录从不清理是既有债，且零旁车模型下不再有任何旁车文件。现在大封面走 data URL
+ * （内存换磁盘）；媒体库视图的封面另有 `getMusicCoverData`（字节 + ObjectURL，可撤销）。
+ * 存量临时目录由主进程启动时一次性清理（`main/utils/legacyTempCleanup`）。
+ */
 export const getMusicFilePic = async(filePath: string) => {
   const picture = await getLocalMusicFilePic(filePath)
   if (!picture) return ''
   if (typeof picture == 'string') return picture
-  if (picture.data.length > 400_000) {
-    try {
-      const tempDir = await getTempDir()
-      const tempFile = path.join(tempDir, path.basename(filePath) + '.' + picture.format.split('/')[1])
-      await fs.writeFile(tempFile, picture.data)
-      return tempFile
-    } catch (err) {
-      console.log(err)
-    }
-  }
   return `data:${picture.format};base64,${Buffer.from(picture.data).toString('base64')}`
+}
+
+/** 读内嵌封面**原始字节**（媒体库视图用：主线程转 ObjectURL，可统一 revoke，不走 data URL 的体积放大） */
+export const getMusicCoverData = async(filePath: string): Promise<{ format: string, data: Uint8Array } | null> => {
+  const picture = await getLocalMusicFilePic(filePath)
+  if (!picture || typeof picture == 'string') return null
+  return { format: picture.format, data: picture.data }
 }
 
 export const parseLyric = (lrc: string): LX.Music.LyricInfo => {

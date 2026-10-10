@@ -16,6 +16,20 @@
       </div>
     </div>
     <ul ref="dom_lists_list" class="scroll" :class="[$style.listsContent, { [$style.sortable]: isModDown }]">
+      <!-- 「全部本地音乐」固定节点（票 03）：不是歌单，是库聚合视图的选择器；永远在自建列表上方 -->
+      <li
+        :class="[$style.listsItem, $style.libraryNode, {[$style.active]: listId == libraryNodeId}]"
+        :aria-label="$t('playlists__local_library')" :aria-selected="listId == libraryNodeId"
+      >
+        <span :class="$style.listsLabel" :title="$t('playlists__local_library')" @click="handleListToggle(libraryNodeId)">
+          <span :class="$style.markerSlot">
+            <transition name="list-active">
+              <svg-icon v-if="listId == libraryNodeId" name="angle-right-solid" :class="$style.activeIcon" />
+            </transition>
+          </span>
+          <span :class="$style.listsName">{{ $t('playlists__local_library') }}</span>
+        </span>
+      </li>
       <li v-if="userLists.length === 0 && !isShowNewList" :class="$style.railTip">
         <span>{{ $t('playlists__local_empty') }}</span>
       </li>
@@ -59,6 +73,7 @@
 
 <script>
 import { openUrl, clipboardWriteText } from '@common/utils/electron'
+import { LIST_IDS } from '@common/constants'
 
 import musicSdk from '@renderer/utils/musicSdk'
 import PlaylistCover from './PlaylistCover.vue'
@@ -253,6 +268,7 @@ export default {
       handleListToggle,
       isModDown,
       hideMenu: handleMenuClick,
+      libraryNodeId: LIST_IDS.LOCAL_LIBRARY,
     }
   },
 }

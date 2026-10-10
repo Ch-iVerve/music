@@ -11,12 +11,14 @@ import { isMac, log } from '@common/utils'
 import createWorkers from './worker'
 import { migrateDBData } from './utils/migrate'
 import { resolveMediaDir } from './utils/mediaDir'
+import { cleanupLegacyCoverTemp } from './utils/legacyTempCleanup'
 import { openDirInExplorer } from '@common/utils/electron'
 import { setProxyByHost } from '@common/utils/request'
 
 export const initGlobalData = () => {
   const envParams = parseEnvParams()
   // envParams.cmdParams.dt = !!envParams.cmdParams.dt
+  cleanupLegacyCoverTemp()
 
   global.envParams = {
     cmdParams: envParams.cmdParams,

@@ -40,6 +40,23 @@ const hashFile = async(filePath: string) =>
     stream.on('end', () => { resolve(hash.digest('hex')) })
   })
 
+/** 导入白名单（票 03：与文件选择对话框同一组扩展名，扫描与选择两条入口口径一致） */
+const AUDIO_EXTENSIONS = new Set(['mp3', 'flac', 'ogg', 'oga', 'wav', 'm4a'])
+
+/** 递归扫描目录下的音频文件（文件夹导入的发现阶段；顺序=目录遍历序，导入时再逐个处理） */
+export const scanAudioFolder = async(dirPath: string): Promise<string[]> => {
+  const out: string[] = []
+  const walk = async(dir: string) => {
+    for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name)
+      if (entry.isDirectory()) await walk(full)
+      else if (entry.isFile() && AUDIO_EXTENSIONS.has(path.extname(entry.name).slice(1).toLowerCase())) out.push(full)
+    }
+  }
+  await walk(dirPath)
+  return out
+}
+
 /** 内嵌歌词有无（粗判：common.lyrics 或原生 tag 里带 LYRIC 字样；票 08/09 的编辑器用 taglib 精确读写） */
 const hasEmbeddedLyric = (metadata: LX.MusicMetadataModule.IAudioMetadata): boolean => {
   if (metadata.common.lyrics?.length) return true

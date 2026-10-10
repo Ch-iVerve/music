@@ -26,6 +26,8 @@ vi.mock('@renderer/event', () => ({ clearDownKeys: () => {}, registerEvents: () 
 
 /** 本地列表的选中项由一个真实存在的自建列表兜底（`userLists[0]`），否则面板不写 id */
 const LIST_ID = 'tx_local_1'
+/** 票 03 起面板的**默认选中项**是「全部本地音乐」固定节点（不再是第一个自建列表） */
+const DEFAULT_ID = 'local_library'
 
 const makeRouter = async(query: string): Promise<Router> => {
   const router = createRouter({
@@ -57,7 +59,8 @@ describe('本地面板写 id 时必须带上 tab（工单 02）', () => {
 
     // 修之前这里只有 { cloud: '125', id: LIST_ID }，tab 丢了 → 被判回云端
     expect(router.currentRoute.value.query.tab).toBe('local')
-    expect(router.currentRoute.value.query.id).toBe(LIST_ID)
+    // 票 03 起无 id（或 id 不是本地列表）时默认落到「全部本地音乐」节点
+    expect(router.currentRoute.value.query.id).toBe(DEFAULT_ID)
     // 云端 tab 的选中项不丢（切回去时还在原位）
     expect(router.currentRoute.value.query.cloud).toBe('125')
   })
@@ -68,7 +71,7 @@ describe('本地面板写 id 时必须带上 tab（工单 02）', () => {
     await flushPromises()
 
     expect(router.currentRoute.value.query.tab).toBe('local')
-    expect(router.currentRoute.value.query.id).toBe(LIST_ID)
+    expect(router.currentRoute.value.query.id).toBe(DEFAULT_ID)
     expect(router.currentRoute.value.query.cloud).toBe('125')
   })
 

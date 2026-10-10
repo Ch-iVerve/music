@@ -31,6 +31,8 @@ export const LIST_IDS = {
   TEMP: 'temp',
   DOWNLOAD: 'download',
   PLAY_LATER: null,
+  /** 本地媒体库「全部本地音乐」固定节点（本地媒体库票 03）：不是一张歌单，是库聚合视图的选择器 id */
+  LOCAL_LIBRARY: 'local_library',
 } as const
 
 export const DATA_KEYS = {
