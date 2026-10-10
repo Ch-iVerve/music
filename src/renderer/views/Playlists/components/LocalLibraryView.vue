@@ -2,26 +2,55 @@
   <div :class="$style.container">
     <div :class="$style.toolbar">
       <span :class="$style.count">{{ $t('playlists__library_count', { num: tracks.length }) }}</span>
+      <base-input
+        v-model="query"
+        :class="$style.search"
+        type="text"
+        :placeholder="$t('playlists__library_search')"
+      />
       <base-btn :class="$style.importBtn" :disabled="importing" @click="handleImportFolder">{{ $t('playlists__import_folder') }}</base-btn>
     </div>
 
-    <div v-if="!tracks.length" :class="$style.empty">{{ $t('playlists__library_empty') }}</div>
+    <!-- 分组胶囊（票 05）：点谁按谁分组，「全部」=不分组；一次只激活一个 -->
+    <div :class="$style.capsules">
+      <button
+        v-for="capsule in capsules"
+        :key="`${capsule.dim}`"
+        :class="[$style.capsule, { [$style.active]: dim == capsule.dim }]"
+        :aria-pressed="dim == capsule.dim"
+        @click="handleDimChange(capsule.dim)"
+      >{{ capsule.label }}</button>
+    </div>
+
+    <div v-if="!rows.length" :class="$style.empty">{{ $t('playlists__library_empty') }}</div>
     <virtualized-list
       v-else
       ref="dom_list"
-      :list="viewTracks"
-      :item-height="48"
-      key-name="id"
+      :list="rows"
+      :item-height="40"
+      key-name="key"
       :class="$style.list"
     >
-      <template #default="{ item, index }">
-        <div :class="$style.row" :data-index="index" @dblclick="handlePlay(index)">
-          <span :class="$style.num">{{ index + 1 }}</span>
-          <library-cover :media-path="item.filePath" />
-          <span :class="$style.name" :title="item.name">{{ item.name }}</span>
-          <span :class="$style.singer" :title="item.singer">{{ item.singer }}</span>
-          <span :class="$style.album" :title="item.album">{{ item.album }}</span>
-          <span :class="$style.interval">{{ item.interval }}</span>
+      <template #default="{ item }">
+        <!-- 组头行：点击折叠/展开 -->
+        <button
+          v-if="item.type == 'header'"
+          :class="$style.header"
+          :aria-expanded="!item.collapsed"
+          @click="handleToggleCollapse(item.key)"
+        >
+          <svg-icon name="angle-right-solid" :class="[$style.headerIcon, { [$style.expanded]: !item.collapsed }]" />
+          <span :class="$style.headerLabel" :title="item.label">{{ item.label }}</span>
+          <span :class="$style.headerCount">{{ item.count }}</span>
+        </button>
+        <!-- 曲目行 -->
+        <div v-else :class="$style.row" :data-index="item.playIndex" @dblclick="handlePlay(item.playIndex)">
+          <span :class="$style.num">{{ (item.playIndex ?? 0) + 1 }}</span>
+          <library-cover :media-path="item.track.filePath" />
+          <span :class="$style.name" :title="item.track.name">{{ item.track.name }}</span>
+          <span :class="$style.singer" :title="item.track.singer">{{ item.track.singer }}</span>
+          <span :class="$style.album" :title="item.track.album">{{ item.track.album }}</span>
+          <span :class="$style.interval">{{ item.track.interval }}</span>
         </div>
       </template>
     </virtualized-list>
@@ -36,16 +65,19 @@ import { LIST_IDS } from '@common/constants'
 import { getEnvParams, localLibraryGetAll, showSelectDialog } from '@renderer/utils/ipc'
 import { buildLocalEntry, importFolderToNewList, useLocalImportState } from '@renderer/core/localLibrary'
 import { revokeCoverUrls } from '@renderer/core/localLibrary/covers'
+import { groupLibraryTracks, filterLibraryTracks } from '@renderer/core/localLibrary/grouping'
 import { playMusicList } from '@renderer/core/player/action'
 
 /**
- * 「全部本地音乐」视图（票 03）：库聚合视图——曲目表 + 文件夹导入入口。
+ * 「全部本地音乐」视图（票 03 立骨架；票 05 加搜索与分组胶囊）。
  *
  * - 数据 = 库全量（`localLibraryGetAll`）；导入完成（弹窗汇总出现）后自动重拉。
- * - 行 = 库曲目，媒体路径由 `filePath`（哈希命名托管副本）取封面、`buildLocalEntry` 转成可播条目；
- *   双击整行即从该曲开始播放（`playMusicList` 挂在库伪列表 id 下，下一首/上一首在库内顺序走）。
- * - 行内封面由 `LibraryCover` 自取（虚拟列表只挂可见行 → 按需读盘），卸载时统一 revoke。
- * - 失效标记 / 分组 / 右键（编辑、删除、加入歌单）属后续票（06/05/08），本视图先立骨架。
+ * - 搜索：歌名/歌手/专辑子串过滤；分组胶囊：不分组 + 全量 tag 字段（spec D17），
+ *   纯函数在 `core/localLibrary/grouping`（有单测），本组件只持三个状态：query / dim / 折叠组。
+ * - 行 = 扁平序列（组头行 + 曲目行，统一行高交给虚拟列表）；双击曲目行在**当前可见顺序**里播放；
+ *   组头点击折叠/展开（切维度清空折叠态）。
+ * - 行内封面由 `LibraryCover` 自取（可见行才挂载 → 按需读盘），卸载时统一 revoke。
+ * - 失效标记 / 右键（编辑、删除、加入歌单）属后续票（06/08），本视图先立骨架。
  */
 export default {
   name: 'LocalLibraryView',
@@ -57,9 +89,58 @@ export default {
     const tracks = ref([])
     const mediaDir = ref('')
     const dom_list = ref(null)
+    const query = ref('')
+    const dim = ref(null)
+    const collapsedKeys = ref(new Set())
     const { visible: importVisible, finished: importFinished } = useLocalImportState()
 
     const importing = computed(() => importVisible.value && !importFinished.value)
+
+    // 维度切换清空折叠态：上一组维度的折叠键对新维度没有意义
+    watch(dim, () => {
+      collapsedKeys.value = new Set()
+    })
+
+    const handleToggleCollapse = (key) => {
+      const next = new Set(collapsedKeys.value)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      collapsedKeys.value = next
+    }
+
+    // 视图行：Track + 合成的托管路径（封面按它读；Track 本身不存路径——哈希即可推导）
+    const viewTracks = computed(() => tracks.value.map(track => ({
+      ...track,
+      filePath: mediaDir.value ? `${mediaDir.value}/${track.id}.${track.ext}` : '',
+    })))
+
+    const capsules = computed(() => ([
+      { dim: null, label: window.i18n.t('playlists__group_none') },
+      { dim: 'singer', label: window.i18n.t('playlists__group_singer') },
+      { dim: 'album', label: window.i18n.t('playlists__group_album') },
+      { dim: 'genre', label: window.i18n.t('playlists__group_genre') },
+      { dim: 'year', label: window.i18n.t('playlists__group_year') },
+      { dim: 'trackNum', label: window.i18n.t('playlists__group_track_num') },
+      { dim: 'discNum', label: window.i18n.t('playlists__group_disc_num') },
+      { dim: 'ext', label: window.i18n.t('playlists__group_ext') },
+    ]))
+    const handleDimChange = (value) => {
+      dim.value = value
+    }
+
+    const rows = computed(() => groupLibraryTracks(
+      viewTracks.value,
+      dim.value,
+      query.value,
+      collapsedKeys.value,
+      window.i18n.t('playlists__group_unknown'),
+    ))
+    // 双击播放 = 在**当前过滤可见序**里播（与所见一致，而不是库里隐藏的顺序）
+    const playEntries = computed(() => filterLibraryTracks(viewTracks.value, query.value)
+      .map(track => buildLocalEntry(track, mediaDir.value)))
+    const handlePlay = (playIndex) => {
+      void playMusicList(LIST_IDS.LOCAL_LIBRARY, playEntries.value, playIndex)
+    }
 
     const load = async() => {
       tracks.value = await localLibraryGetAll()
@@ -76,18 +157,6 @@ export default {
       revokeCoverUrls()
     })
 
-    // 行 → 可播条目（spec D4 的引用形态；播放链路与歌单条目完全一致）
-    const entries = computed(() => tracks.value.map(track => buildLocalEntry(track, mediaDir.value)))
-    const handlePlay = (index) => {
-      void playMusicList(LIST_IDS.LOCAL_LIBRARY, entries.value, index)
-    }
-
-    // 视图行：Track + 合成的托管路径（封面按它读；Track 本身不存路径——哈希即可推导）
-    const viewTracks = computed(() => tracks.value.map(track => ({
-      ...track,
-      filePath: mediaDir.value ? `${mediaDir.value}/${track.id}.${track.ext}` : '',
-    })))
-
     const handleImportFolder = async() => {
       const { canceled, filePaths } = await showSelectDialog({
         title: window.i18n.t('playlists__import_folder'),
@@ -99,10 +168,15 @@ export default {
 
     return {
       tracks,
-      viewTracks,
       dom_list,
+      query,
+      dim,
+      capsules,
+      rows,
       importing,
       handlePlay,
+      handleDimChange,
+      handleToggleCollapse,
       handleImportFolder,
     }
   },
@@ -128,12 +202,46 @@ export default {
 }
 
 .count {
+  flex: none;
   font-size: 13px;
   color: var(--color-font-label);
 }
 
+.search {
+  flex: 1;
+  max-width: 260px;
+}
+
 .import-btn {
   margin-left: auto;
+}
+
+.capsules {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 0 10px;
+}
+
+.capsule {
+  padding: 3px 12px;
+  border: 1px solid var(--color-primary-light-500);
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--color-font-label);
+  background-color: transparent;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--color-font);
+  }
+
+  &.active {
+    color: var(--color-theme);
+    border-color: var(--color-theme);
+    background-color: var(--color-primary-background);
+  }
 }
 
 .empty {
@@ -150,8 +258,47 @@ export default {
   min-height: 0;
 }
 
+.header {
+  height: 40px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  font-size: 13px;
+  font-weight: bold;
+  color: var(--color-font);
+  background-color: var(--color-primary-background);
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.header-icon {
+  width: 12px;
+  height: 12px;
+  transition: transform @transition-normal;
+
+  &.expanded {
+    transform: rotate(90deg);
+  }
+}
+
+.header-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header-count {
+  flex: none;
+  color: var(--color-font-label);
+  font-weight: normal;
+}
+
 .row {
-  height: 48px;
+  height: 40px;
   display: flex;
   align-items: center;
   gap: 10px;
