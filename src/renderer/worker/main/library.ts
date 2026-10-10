@@ -70,6 +70,64 @@ export const checkMissingPaths = async(paths: string[]): Promise<string[]> => {
   return missing
 }
 
+export interface LibraryReconcileReport {
+  /** 孤儿文件：媒体目录里有、库里没有（可清理或收编入库） */
+  orphans: string[]
+  /** 失效记录：库里有、目录里没有（可移除记录或保留标记） */
+  missing: string[]
+  /** 大小与记录不符（便宜的错位检测；提示重导，处置同失效） */
+  mismatched: string[]
+}
+
+/** 重扫描对账（票 07）：媒体目录 vs 曲目库的三类差异。大小比对是哈希重算的**廉价替身**——
+ *  内容变了尺寸几乎必变；真哈希校验留给票 08 的 taglib 落地后再评估要不要做全量 */
+export const reconcileLibrary = async(options: {
+  mediaDir: string
+  tracks: Array<{ id: string, ext: string, size: number }>
+}): Promise<LibraryReconcileReport> => {
+  const { mediaDir, tracks } = options
+  let diskFiles: string[] = []
+  try {
+    diskFiles = await fs.readdir(mediaDir)
+  } catch {}
+  const diskSet = new Set(diskFiles)
+  const trackByFileName = new Map(tracks.map(track => [`${track.id}.${track.ext}`, track]))
+
+  const orphans: string[] = []
+  for (const name of diskFiles) {
+    if (!trackByFileName.has(name)) orphans.push(path.join(mediaDir, name))
+  }
+
+  const missing: string[] = []
+  const mismatched: string[] = []
+  for (const track of tracks) {
+    const fileName = `${track.id}.${track.ext}`
+    if (!diskSet.has(fileName)) {
+      missing.push(path.join(mediaDir, fileName))
+      continue
+    }
+    try {
+      const stats = await fs.stat(path.join(mediaDir, fileName))
+      if (stats.size != track.size) mismatched.push(path.join(mediaDir, fileName))
+    } catch {}
+  }
+  return { orphans, missing, mismatched }
+}
+
+/** 删除孤儿文件（**只删调用方明确列出的路径**；有确认弹窗拦在 UI 层） */
+export const deleteOrphanFiles = async(paths: string[]): Promise<number> => {
+  let deleted = 0
+  for (const filePath of paths) {
+    try {
+      await fs.rm(filePath, { force: true })
+      deleted++
+    } catch (err) {
+      console.log('[library.rescan] 删除孤儿文件失败:', filePath, err)
+    }
+  }
+  return deleted
+}
+
 /** 内嵌歌词有无（粗判：common.lyrics 或原生 tag 里带 LYRIC 字样；票 08/09 的编辑器用 taglib 精确读写） */
 const hasEmbeddedLyric = (metadata: LX.MusicMetadataModule.IAudioMetadata): boolean => {
   if (metadata.common.lyrics?.length) return true
@@ -116,7 +174,8 @@ export const ingestLocalFiles = async(options: {
         const ext = (path.extname(filePath).slice(1) || 'mp3').toLowerCase()
         // 托管副本 = 内容哈希命名（spec D2 零旁车：歌词/封面/信息全内嵌在文件里，目录内只有音频本体）
         const targetPath = path.join(mediaDir, `${hash}.${ext}`)
-        await fs.copyFile(filePath, targetPath)
+        // 收编孤儿时源文件就在媒体目录里（目标=同一路径）：自己拷自己没有意义，跳过
+        if (targetPath != filePath) await fs.copyFile(filePath, targetPath)
         const stats = await fs.stat(filePath)
         known.add(hash)
         tracks.push({

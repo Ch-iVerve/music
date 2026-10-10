@@ -1,9 +1,9 @@
 import path from 'node:path'
 import { ref } from '@common/utils/vueTools'
 import { addListMusics, createUserList, getListMusics } from '@renderer/store/list/action'
-import { getEnvParams, localLibraryAdd, localLibraryGetAll } from '@renderer/utils/ipc'
+import { getEnvParams, localLibraryAdd, localLibraryGetAll, localLibraryRemove } from '@renderer/utils/ipc'
 import { proxyCallback } from '@renderer/worker/utils'
-import type { LocalIngestProgress } from '@renderer/worker/main/library'
+import type { LibraryReconcileReport, LocalIngestProgress } from '@renderer/worker/main/library'
 
 /**
  * 托管导入的**主线程编排**（票 02）：worker 管线只碰文件，这里串起查库、落库、写歌单与 UI 状态。
@@ -136,4 +136,40 @@ export const importFolderToNewList = async(folderPath: string): Promise<void> =>
   const listId = `userlist_${Date.now()}`
   await createUserList({ name: path.basename(folderPath) || folderPath, id: listId })
   await importLocalFilesToList(listId, files)
+}
+
+/** 重扫描对账（票 07）：媒体目录 vs 曲目库的三类差异报告 */
+export const reconcileLibrary = async(): Promise<LibraryReconcileReport> => {
+  const mediaDir = (await getEnvParams()).mediaDir
+  const tracks = await localLibraryGetAll()
+  return window.lx.worker.main.reconcileLibrary({
+    mediaDir,
+    tracks: tracks.map(track => ({ id: track.id, ext: track.ext, size: track.size })),
+  })
+}
+
+/** 收编孤儿文件：走同一托管管线（已在媒体目录内的不再自拷），仅入库、不进歌单 */
+export const adoptOrphanFiles = async(paths: string[]): Promise<number> => {
+  if (!paths.length) return 0
+  const mediaDir = (await getEnvParams()).mediaDir
+  const result = await window.lx.worker.main.ingestLocalFiles({
+    filePaths: paths,
+    mediaDir,
+    existingHashes: [],
+    onProgress: proxyCallback(() => {}),
+    shouldCancel: proxyCallback(() => false),
+  })
+  if (result.tracks.length) await localLibraryAdd(result.tracks)
+  return result.tracks.length
+}
+
+/** 移除失效/不符记录（mediaPath → 哈希；级联清引用行与排序行走库模块既有能力；媒体文件不动） */
+export const removeLibraryTracksByPath = async(paths: string[]): Promise<void> => {
+  if (!paths.length) return
+  await localLibraryRemove(paths.map(p => path.basename(p, path.extname(p))))
+}
+
+/** 删除孤儿文件（破坏性：UI 层有二次确认） */
+export const deleteOrphanFiles = async(paths: string[]): Promise<number> => {
+  return window.lx.worker.main.deleteOrphanFiles(paths)
 }

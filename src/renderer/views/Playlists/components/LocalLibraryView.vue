@@ -8,7 +8,8 @@
         type="text"
         :placeholder="$t('playlists__library_search')"
       />
-      <base-btn :class="$style.importBtn" :disabled="importing" @click="handleImportFolder">{{ $t('playlists__import_folder') }}</base-btn>
+      <base-btn :class="$style.importBtn" :disabled="importing" @click="handleRescan">{{ $t('playlists__rescan') }}</base-btn>
+      <base-btn :disabled="importing" @click="handleImportFolder">{{ $t('playlists__import_folder') }}</base-btn>
     </div>
 
     <!-- 分组胶囊（票 05）：点谁按谁分组，「全部」=不分组；一次只激活一个 -->
@@ -30,8 +31,7 @@
       :item-height="40"
       key-name="key"
       :class="$style.list"
-    >
-      <template #default="{ item }">
+    >      <template #default="{ item }">
         <!-- 组头行：点击折叠/展开 -->
         <button
           v-if="item.type == 'header'"
@@ -61,6 +61,8 @@
         </div>
       </template>
     </virtualized-list>
+
+    <library-rescan-modal :show="showRescan" :report="rescanReport" @close="showRescan = false" @changed="handleRescanChanged" />
   </div>
 </template>
 
@@ -68,9 +70,15 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from '@common/utils/vueTools'
 import VirtualizedList from '@renderer/components/base/VirtualizedList.vue'
 import LibraryCover from './LibraryCover.vue'
+import LibraryRescanModal from './LibraryRescanModal.vue'
 import { LIST_IDS } from '@common/constants'
 import { getEnvParams, localLibraryGetAll, showSelectDialog } from '@renderer/utils/ipc'
-import { buildLocalEntry, importFolderToNewList, useLocalImportState } from '@renderer/core/localLibrary'
+import {
+  buildLocalEntry,
+  importFolderToNewList,
+  reconcileLibrary,
+  useLocalImportState,
+} from '@renderer/core/localLibrary'
 import { revokeCoverUrls } from '@renderer/core/localLibrary/covers'
 import { checkAvailability, isMediaPathMissing } from '@renderer/core/localLibrary/availability'
 import { groupLibraryTracks, filterLibraryTracks } from '@renderer/core/localLibrary/grouping'
@@ -92,6 +100,7 @@ export default {
   components: {
     VirtualizedList,
     LibraryCover,
+    LibraryRescanModal,
   },
   setup() {
     const tracks = ref([])
@@ -176,6 +185,18 @@ export default {
       await importFolderToNewList(filePaths[0])
     }
 
+    // 重扫描对账（票 07）：按钮 → 报告弹窗；弹窗内处置完成（changed）→ 重拉库 + 刷新报告
+    const showRescan = ref(false)
+    const rescanReport = ref(null)
+    const handleRescan = async() => {
+      showRescan.value = true
+      rescanReport.value = await reconcileLibrary()
+    }
+    const handleRescanChanged = async() => {
+      await load()
+      rescanReport.value = await reconcileLibrary()
+    }
+
     return {
       tracks,
       viewTracks,
@@ -186,10 +207,14 @@ export default {
       rows,
       importing,
       isMediaPathMissing,
+      showRescan,
+      rescanReport,
       handlePlay,
       handleDimChange,
       handleToggleCollapse,
       handleImportFolder,
+      handleRescan,
+      handleRescanChanged,
     }
   },
 }
