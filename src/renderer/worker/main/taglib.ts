@@ -56,9 +56,10 @@ export const readTrackTags = async(filePath: string, wasmPath: string): Promise<
       name: tag.title ?? '',
       singer: tag.artist ?? '',
       album: tag.album?.trim() ?? null,
-      year: toStr(tag.year),
+      // 0 值视为「没写」——tag 库对缺失年份/音轨常回 0，显示成「0」是视觉 bug（票 14 真机截图）
+      year: tag.year ? toStr(tag.year) : null,
       genre: tag.genre ?? null,
-      trackNum: toStr(tag.track),
+      trackNum: tag.track ? toStr(tag.track) : null,
       discNum: disc === '' ? null : disc,
       hasPic: pictures.length > 0,
       hasLyric: lyrics.length > 0,

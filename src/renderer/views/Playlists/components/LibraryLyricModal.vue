@@ -328,7 +328,9 @@ export default {
 
 .main {
   padding: 15px 20px;
-  height: 80vh;
+  height: 82vh;
+  // 不算 padding 的话内容会垂直居中后向上溢出——标题被截成半截（票 14 真机截图）
+  box-sizing: border-box;
   display: flex;
   flex-flow: column nowrap;
 }

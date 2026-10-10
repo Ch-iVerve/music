@@ -16,6 +16,8 @@
   min-width: 0;
   min-height: 0;
   overflow-y: scroll !important;
+  // 右侧留出滚动带：新版 Chromium 悬浮滚动条会压在行文字上（票 14 真机截图红圈处）
+  padding-right: 10px;
 
   &.sortable {
     * {

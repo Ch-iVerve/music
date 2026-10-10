@@ -29,8 +29,10 @@
       :list="rows"
       :item-height="44"
       key-name="key"
+      container-class="scroll"
       :class="$style.list"
-    >      <template #default="{ item }">
+    >
+      <template #default="{ item }">
         <!-- 组头行：点击折叠/展开 -->
         <button
           v-if="item.type == 'header'"
@@ -369,6 +371,8 @@ export default {
 .list {
   flex: auto;
   min-height: 0;
+  // 右侧留出滚动带，时长/操作钮不被滚动条压住
+  padding-right: 8px;
 }
 
 .header {
