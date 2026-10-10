@@ -1,6 +1,9 @@
 <template>
   <img v-if="url" :src="url" :class="$style.cover" alt="" />
-  <span v-else :class="$style.placeholder" />
+  <!-- 无内嵌封面：音符占位（票 14 真机反馈——灰块噪点难看，改成有意为之的小图标） -->
+  <span v-else :class="$style.placeholder">
+    <svg-icon name="music" :class="$style.placeholderIcon" />
+  </span>
 </template>
 
 <script>
@@ -49,7 +52,16 @@ export default {
   width: 38px;
   height: 38px;
   border-radius: 3px;
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background-color: var(--color-primary-background);
+}
+
+.placeholder-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--color-font-label);
+  opacity: .6;
 }
 </style>

@@ -458,6 +458,8 @@
   "playlists__rescan_remove": "레코드 제거",
   "playlists__rescan_clean_confirm": "미디어 디렉터리에서 관리 복사본 {num}개를 삭제합니다(원본 파일은 영향 없음). 확정하시겠습니까?",
   "playlists__rescan_remove_confirm": "라이브러리에서 레코드 {num}개를 제거하고 관련 플레이리스트 참조를 정리합니다(미디어 파일은 영향 없음). 확정하시겠습니까?",
+  "playlists__rescan_junk": "정크 항목(macOS 메타데이터 파일이 잘못 가져와짐)",
+  "playlists__rescan_junk_remove": "제거 및 파일 삭제",
   "playlists__rescan_none": "디렉터리와 라이브러리가 일치합니다 — 처리할 것이 없습니다",
   "playlists__rescan_close": "닫기",
   "playlists__edit_title": "정보 편집",

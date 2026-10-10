@@ -17,7 +17,7 @@
           @click="handleDimChange(capsule.dim)"
         >{{ capsule.label }}</button>
       </div>
-      <span :class="$style.count">{{ tracks.length }}</span>
+      <span :class="$style.count">{{ $t('playlists__library_count', { num: tracks.length }) }}</span>
       <base-btn min :disabled="importing" @click="handleRescan">{{ $t('playlists__rescan') }}</base-btn>
       <base-btn :class="$style.importBtn" :disabled="importing" @click="handleImportFolder">{{ $t('playlists__import_folder') }}</base-btn>
     </div>
@@ -332,6 +332,7 @@ export default {
 }
 
 .capsule {
+  flex: none;
   padding: 3px 12px;
   border: 1px solid var(--color-primary-light-500);
   border-radius: 999px;
@@ -339,6 +340,7 @@ export default {
   color: var(--color-font-label);
   background-color: transparent;
   cursor: pointer;
+  white-space: nowrap;
 
   &:hover {
     color: var(--color-font);

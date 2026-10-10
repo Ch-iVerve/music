@@ -46,11 +46,16 @@ const hashFile = async(filePath: string) =>
 /** 导入白名单（票 03：与文件选择对话框同一组扩展名，扫描与选择两条入口口径一致） */
 const AUDIO_EXTENSIONS = new Set(['mp3', 'flac', 'ogg', 'oga', 'wav', 'm4a'])
 
+/** 垃圾文件判定（票 14 真机反馈）：`._` 开头是 macOS AppleDouble 元数据（几 KB 的非音频垃圾，
+ *  music-metadata 有时还能从中读出点东西，导入全是无 tag 噪声条目）；其余点开头的一并视为隐藏文件 */
+const isJunkFileName = (name: string): boolean => name.startsWith('.')
+
 /** 递归扫描目录下的音频文件（文件夹导入的发现阶段；顺序=目录遍历序，导入时再逐个处理） */
 export const scanAudioFolder = async(dirPath: string): Promise<string[]> => {
   const out: string[] = []
   const walk = async(dir: string) => {
     for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
+      if (entry.name.startsWith('.')) continue
       const full = path.join(dir, entry.name)
       if (entry.isDirectory()) await walk(full)
       else if (entry.isFile() && AUDIO_EXTENSIONS.has(path.extname(entry.name).slice(1).toLowerCase())) out.push(full)
@@ -80,13 +85,15 @@ export interface LibraryReconcileReport {
   missing: string[]
   /** 大小与记录不符（便宜的错位检测；提示重导，处置同失效） */
   mismatched: string[]
+  /** 垃圾条目（票 14）：macOS `._*` 元数据文件被旧版导入成的噪声曲目——记录与托管副本一并清除 */
+  junk: string[]
 }
 
-/** 重扫描对账（票 07）：媒体目录 vs 曲目库的三类差异。大小比对是哈希重算的**廉价替身**——
+/** 重扫描对账（票 07/14）：媒体目录 vs 曲目库的差异。大小比对是哈希重算的**廉价替身**——
  *  内容变了尺寸几乎必变；真哈希校验留给票 08 的 taglib 落地后再评估要不要做全量 */
 export const reconcileLibrary = async(options: {
   mediaDir: string
-  tracks: Array<{ id: string, ext: string, size: number }>
+  tracks: Array<{ id: string, ext: string, size: number, name: string }>
 }): Promise<LibraryReconcileReport> => {
   const { mediaDir, tracks } = options
   let diskFiles: string[] = []
@@ -103,8 +110,14 @@ export const reconcileLibrary = async(options: {
 
   const missing: string[] = []
   const mismatched: string[] = []
+  const junk: string[] = []
   for (const track of tracks) {
     const fileName = `${track.id}.${track.ext}`
+    // 垃圾条目（macOS `._*` 旧导入噪声）优先归类：无论托管副本在与不在，都是「记录+文件一起清」
+    if (track.name.startsWith('._')) {
+      junk.push(path.join(mediaDir, fileName))
+      continue
+    }
     if (!diskSet.has(fileName)) {
       missing.push(path.join(mediaDir, fileName))
       continue
@@ -114,7 +127,7 @@ export const reconcileLibrary = async(options: {
       if (stats.size != track.size) mismatched.push(path.join(mediaDir, fileName))
     } catch {}
   }
-  return { orphans, missing, mismatched }
+  return { orphans, missing, mismatched, junk }
 }
 
 /** 删除孤儿文件（**只删调用方明确列出的路径**；有确认弹窗拦在 UI 层） */
@@ -177,7 +190,13 @@ export const ingestLocalFiles = async(
 
   for (const filePath of filePaths) {
     const fileName = path.basename(filePath)
-    // Comlink 的回调过桥后返回 Promise（恒真值）——必须 await（两轴审查修正）
+    // 垃圾/隐藏文件（macOS `._*` 等）直接静默跳过——它们不是音频，连「失败」都算不上（票 14 真机反馈）
+    if (isJunkFileName(fileName)) {
+      done++
+      onProgress({ total: filePaths.length, done, current: fileName })
+      continue
+    }
+    // Comlink 过桥后回调返回 Promise（恒真值）——必须 await（两轴审查修正）
     if (await shouldCancel()) {
       cancelled = true
       break

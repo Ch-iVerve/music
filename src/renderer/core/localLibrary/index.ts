@@ -140,13 +140,13 @@ export const importFolderToNewList = async(folderPath: string): Promise<void> =>
   await importLocalFilesToList(listId, files)
 }
 
-/** 重扫描对账（票 07）：媒体目录 vs 曲目库的三类差异报告 */
+/** 重扫描对账（票 07/14）：媒体目录 vs 曲目库的差异报告 */
 export const reconcileLibrary = async(): Promise<LibraryReconcileReport> => {
   const mediaDir = (await getEnvParams()).mediaDir
   const tracks = await localLibraryGetAll()
   return window.lx.worker.main.reconcileLibrary({
     mediaDir,
-    tracks: tracks.map(track => ({ id: track.id, ext: track.ext, size: track.size })),
+    tracks: tracks.map(track => ({ id: track.id, ext: track.ext, size: track.size, name: track.name })),
   })
 }
 

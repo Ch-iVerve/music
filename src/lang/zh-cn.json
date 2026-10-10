@@ -458,6 +458,8 @@
   "playlists__rescan_remove": "移除记录",
   "playlists__rescan_clean_confirm": "将从媒体目录删除 {num} 个托管文件副本（你的原始文件不受影响），确定？",
   "playlists__rescan_remove_confirm": "将从库中移除 {num} 条记录并清理其歌单引用（媒体文件不受影响），确定？",
+  "playlists__rescan_junk": "垃圾条目（macOS 元数据文件被误导入）",
+  "playlists__rescan_junk_remove": "移除并删除文件",
   "playlists__rescan_none": "目录与库完全一致，无需处理",
   "playlists__rescan_close": "关闭",
   "playlists__edit_title": "编辑信息",
