@@ -14,6 +14,7 @@ export default ({
   handleCopySourceLink,
   handleImportList,
   handleExportList,
+  handleShowExportWizard,
   handleUpdateSourceList,
   handleRemove,
 }) => {
@@ -78,6 +79,12 @@ export default ({
       {
         name: t('lists__export'),
         action: 'export',
+        disabled: !menuControl.export,
+      },
+      // 导出向导（票 11）：JSON / m3u8 / 复制音频文件三选勾
+      {
+        name: t('playlists__export_wizard'),
+        action: 'export_wizard',
         disabled: !menuControl.export,
       },
       {
@@ -174,6 +181,9 @@ export default ({
         break
       case 'export':
         handleExportList(listInfo)
+        break
+      case 'export_wizard':
+        handleShowExportWizard?.(listInfo)
         break
       case 'sync':
         handleUpdateSourceList(listInfo)

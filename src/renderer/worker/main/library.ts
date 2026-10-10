@@ -128,6 +128,22 @@ export const deleteOrphanFiles = async(paths: string[]): Promise<number> => {
   return deleted
 }
 
+/** 导出的复制阶段（票 11）：按调用方给好的 src→dest 清单逐个复制；单文件失败跳过进汇总 */
+export const exportCopyFiles = async(tasks: Array<{ src: string, dest: string }>): Promise<{ copied: number, failures: string[] }> => {
+  let copied = 0
+  const failures: string[] = []
+  for (const task of tasks) {
+    try {
+      await fs.copyFile(task.src, task.dest)
+      copied++
+    } catch (err) {
+      console.log('[library.export] 复制失败:', task.src, err)
+      failures.push(path.basename(task.src))
+    }
+  }
+  return { copied, failures }
+}
+
 /** 内嵌歌词有无（粗判：common.lyrics 或原生 tag 里带 LYRIC 字样；票 08/09 的编辑器用 taglib 精确读写） */
 const hasEmbeddedLyric = (metadata: LX.MusicMetadataModule.IAudioMetadata): boolean => {
   if (metadata.common.lyrics?.length) return true
