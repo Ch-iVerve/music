@@ -74,15 +74,16 @@ export const importLocalFilesToList = async(listId: string, filePaths: string[])
     const trackById = new Map<string, EntrySource>(libraryTracks.map(track => [track.id, track]))
     const inListIds = new Set(listMusics.map(music => music.id))
 
-    const result = await window.lx.worker.main.ingestLocalFiles({
+    const result = await window.lx.worker.main.ingestLocalFiles(
       filePaths,
       mediaDir,
-      existingHashes: libraryTracks.map(track => track.id),
-      onProgress: proxyCallback((p: LocalIngestProgress) => {
+      libraryTracks.map(track => track.id),
+      // ⚠️ 回调必须是**顶层位置参数**：Comlink 只转换顶层的代理标记值，嵌进对象里过不了结构化克隆
+      proxyCallback((p: LocalIngestProgress) => {
         progress.value = p
       }),
-      shouldCancel: proxyCallback(() => cancelFlag.value),
-    })
+      proxyCallback(() => cancelFlag.value),
+    )
 
     // 新曲目落库；命中库的每一个文件（新入库 + 已在库）都引用进目标歌单（已在歌单的除外）
     if (result.tracks.length) await localLibraryAdd(result.tracks)
@@ -153,13 +154,13 @@ export const reconcileLibrary = async(): Promise<LibraryReconcileReport> => {
 export const adoptOrphanFiles = async(paths: string[]): Promise<number> => {
   if (!paths.length) return 0
   const mediaDir = (await getEnvParams()).mediaDir
-  const result = await window.lx.worker.main.ingestLocalFiles({
-    filePaths: paths,
+  const result = await window.lx.worker.main.ingestLocalFiles(
+    paths,
     mediaDir,
-    existingHashes: [],
-    onProgress: proxyCallback(() => {}),
-    shouldCancel: proxyCallback(() => false),
-  })
+    [],
+    proxyCallback(() => {}),
+    proxyCallback(() => false),
+  )
   if (result.tracks.length) await localLibraryAdd(result.tracks)
   return result.tracks.length
 }

@@ -48,13 +48,13 @@ const run = async(filePaths: string[], mediaDir: string, options: {
   existingHashes?: string[]
   shouldCancel?: () => boolean
   onProgress?: (p: { total: number, done: number, current: string }) => void
-} = {}) => ingestLocalFiles({
+} = {}) => ingestLocalFiles(
   filePaths,
   mediaDir,
-  existingHashes: options.existingHashes ?? [],
-  onProgress: options.onProgress ?? (() => {}),
-  shouldCancel: options.shouldCancel ?? (() => false),
-})
+  options.existingHashes ?? [],
+  options.onProgress ?? (() => {}),
+  options.shouldCancel ?? (() => false),
+)
 
 afterAll(() => {
   fs.rmSync(tmpRoot, { recursive: true, force: true })

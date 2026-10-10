@@ -5,12 +5,15 @@ import path from 'node:path'
 import { formatPlayTime } from '@common/utils/common'
 
 /**
- * 本地媒体库的**托管导入管线**（票 02）。
+ * 托管导入的执行（票 02）。
  *
+ * ⚠️ 签名必须是**扁平位置参数**：Comlink 只把「顶层参数」上的代理标记值转成 MessagePort，
+ * 嵌在对象里的回调函数过不了结构化克隆（真机 DataCloneError：`could not be cloned`，票 10 前
+ * 的 options 对象写法就这么炸的——与 `download.startTask` 的生产先例同一约定）。
  * 每个文件走一遍：内容哈希 → 命中已有哈希则跳过（spec：同内容天然去重）→ 解析 tag →
  * **复制**进媒体目录（spec D3：原始文件不存在删除/移动分支，托管永远是复制）→ 产出曲目行。
  * 数据库的读写不在这里（渲染 worker 摸不到主进程 dbService）：已有哈希集合由主线程查库后
- * 传入，产出由主线程经 IPC 落库。进度与取消经 Comlink 回调上报（`proxyCallback`）。
+ * 传入，产出由主线程经 IPC 落库。进度与取消经 Comlink 回调上报。
  */
 
 export interface LocalIngestProgress {
@@ -153,17 +156,16 @@ const hasEmbeddedLyric = (metadata: LX.MusicMetadataModule.IAudioMetadata): bool
   return false
 }
 
-export const ingestLocalFiles = async(options: {
-  filePaths: string[]
-  mediaDir: string
+export const ingestLocalFiles = async(
+  filePaths: string[],
+  mediaDir: string,
   /** 库里已有的曲目哈希（主线程查库后传入） */
-  existingHashes: string[]
-  onProgress: (progress: LocalIngestProgress) => void
+  existingHashes: string[],
+  onProgress: (progress: LocalIngestProgress) => void,
   /** Comlink 过桥后实际返回 Promise<boolean>，实现里必须 await */
-  shouldCancel: () => boolean | Promise<boolean>
-}): Promise<LocalIngestResult> => {
-  const { filePaths, mediaDir, onProgress, shouldCancel } = options
-  const known = new Set(options.existingHashes)
+  shouldCancel: () => boolean | Promise<boolean>,
+): Promise<LocalIngestResult> => {
+  const known = new Set(existingHashes)
   const tracks: LX.LocalLibrary.TrackInput[] = []
   const failures: string[] = []
   /** 命中已有哈希的文件（返回哈希本身：主线程要按它回填歌单引用行，spec D4/D7） */
