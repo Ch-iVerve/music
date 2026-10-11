@@ -463,6 +463,8 @@
   "playlists__rescan_none": "디렉터리와 라이브러리가 일치합니다 — 처리할 것이 없습니다",
   "playlists__rescan_close": "닫기",
   "playlists__edit_title": "정보 편집",
+  "playlists__library_remove": "라이브러리에서 제거",
+  "playlists__library_remove_tip": "\"{name}\"을(를) 라이브러리와 모든 재생목록에서 제거하고 관리 복사본도 함께 삭제합니다. 원본 파일은 영향을 받지 않습니다.",
   "playlists__edit_name": "곡명",
   "playlists__edit_singer": "가수",
   "playlists__edit_album": "앨범",

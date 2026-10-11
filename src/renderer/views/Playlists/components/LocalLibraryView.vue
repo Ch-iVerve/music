@@ -18,7 +18,8 @@
         >{{ capsule.label }}</button>
       </div>
       <span :class="$style.count">{{ $t('playlists__library_count', { num: tracks.length }) }}</span>
-      <base-btn min :disabled="importing" @click="handleRescan">{{ $t('playlists__rescan') }}</base-btn>
+      <!-- 与「导入文件夹」同高（33px）：描边=次级、实底=主级；不再用 min 小钮（一行里大小参差） -->
+      <base-btn outline :class="$style.ghostBtn" :disabled="importing" @click="handleRescan">{{ $t('playlists__rescan') }}</base-btn>
       <base-btn :class="$style.importBtn" :disabled="importing" @click="handleImportFolder">{{ $t('playlists__import_folder') }}</base-btn>
     </div>
 
@@ -73,8 +74,13 @@
       </template>
     </virtualized-list>
 
-    <!-- 行右键菜单：播放 / 编辑信息（失效标记、删除等更多项在后续票接入同一菜单） -->
+    <!-- 行右键菜单：与普通歌单表同一套歌曲菜单（托管条目都是本地源，下载/收藏/跳转类不出现） -->
     <base-menu v-model="isShowItemMenu" :menus="itemMenus" :xy="itemMenuLocation" item-name="name" @menu-click="handleItemMenuClick" />
+    <!-- 加入歌单：与 `ListMusicTable` 共用同一弹窗（全局注册的 common-list-add-modal） -->
+    <common-list-add-modal
+      v-model:show="isShowListAdd" :is-move="false" :from-list-id="libraryListId"
+      :music-info="addMusicInfo" :exclude-list-id="addExcludeListIds" teleport="#view"
+    />
     <library-edit-modal :show="showEdit" :track="editTrack" @close="showEdit = false" @saved="load" @edit-lyrics="handleOpenLyric" />
     <library-lyric-modal :show="showLyric" :track="lyricTrack" @close="showLyric = false" @saved="load" />
 
@@ -83,17 +89,24 @@
 </template>
 
 <script>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from '@common/utils/vueTools'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from '@common/utils/vueTools'
+import { useRouter } from '@common/utils/vueRouter'
+import { clipboardWriteText } from '@common/utils/electron'
 import VirtualizedList from '@renderer/components/base/VirtualizedList.vue'
 import LibraryCover from './LibraryCover.vue'
 import LibraryRescanModal from './LibraryRescanModal.vue'
 import LibraryEditModal from './LibraryEditModal.vue'
 import LibraryLyricModal from './LibraryLyricModal.vue'
 import { LIST_IDS } from '@common/constants'
-import { getEnvParams, localLibraryGetAll, showSelectDialog } from '@renderer/utils/ipc'
+import { getEnvParams, localLibraryGetAll, localLibraryRemove, showSelectDialog } from '@renderer/utils/ipc'
+import { appSetting } from '@renderer/store/setting'
+import { formatMusicName } from '@renderer/utils'
+import { addTempPlayList } from '@renderer/store/player/action'
+import { dialog } from '@renderer/plugins/Dialog'
 import {
   autoCleanJunk,
   buildLocalEntry,
+  deleteOrphanFiles,
   importFolderToNewList,
   reconcileLibrary,
   useLocalImportState,
@@ -112,7 +125,7 @@ import { playMusicList } from '@renderer/core/player/action'
  * - 行 = 扁平序列（组头行 + 曲目行，统一行高交给虚拟列表）；双击曲目行在**当前可见顺序**里播放；
  *   组头点击折叠/展开（切维度清空折叠态）。
  * - 行内封面由 `LibraryCover` 自取（可见行才挂载 → 按需读盘），卸载时统一 revoke。
- * - 失效标记 / 右键（编辑、删除、加入歌单）属后续票（06/08），本视图先立骨架。
+ * - 行右键 = 与普通歌单表同一套歌曲动作（按本地源裁剪）；失效标记属票 06。
  */
 export default {
   name: 'LocalLibraryView',
@@ -124,6 +137,7 @@ export default {
     LibraryLyricModal,
   },
   setup() {
+    const router = useRouter()
     const tracks = ref([])
     const mediaDir = ref('')
     const dom_list = ref(null)
@@ -221,28 +235,81 @@ export default {
       rescanReport.value = await reconcileLibrary()
     }
 
-    // 行右键菜单（票 08）：播放 / 编辑信息
+    // 行右键菜单：与普通歌单表（ListMusicTable）同一套歌曲动作，按「托管本地源」裁剪——
+    // 下载 / 我喜欢 / 跳转分享这类只对在线源有意义的项不出现，而不是摆灰键（真机反馈：菜单内容不对）
     const isShowItemMenu = ref(false)
     const itemMenuLocation = ref({ x: 0, y: 0 })
     const editTrack = ref(null)
     const showEdit = ref(false)
     const itemMenus = computed(() => ([
       { name: window.i18n.t('list__play'), action: 'play' },
+      { name: window.i18n.t('list__play_later'), action: 'playLater' },
+      { name: window.i18n.t('list__add_to'), action: 'addTo' },
       { name: window.i18n.t('playlists__edit_title'), action: 'edit' },
+      { name: window.i18n.t('list__copy_name'), action: 'copyName' },
+      { name: window.i18n.t('list__search'), action: 'search' },
+      { name: window.i18n.t('playlists__library_remove'), action: 'remove' },
     ]))
+    // 菜单动作都吃 MusicInfoLocal 形态（与播放用的同一转换）
+    const entryFor = (track) => buildLocalEntry(track, mediaDir.value)
     const handleRowContextmenu = (event, track) => {
       itemMenuLocation.value = { x: event.clientX, y: event.clientY }
       editTrack.value = track
       isShowItemMenu.value = true
     }
     const handleItemMenuClick = (action) => {
-      if (action == 'play') {
-        const row = rows.value.find(row => row.type == 'track' && row.key == editTrack.value?.id)
-        if (row) handlePlay(row.playIndex)
-        return
+      const track = editTrack.value
+      if (!track || !action) return
+      switch (action.action) {
+        case 'play': {
+          const row = rows.value.find(row => row.type == 'track' && row.key == track.id)
+          if (row) handlePlay(row.playIndex)
+          break
+        }
+        case 'playLater':
+          addTempPlayList([{ listId: LIST_IDS.LOCAL_LIBRARY, musicInfo: entryFor(track) }])
+          break
+        case 'addTo':
+          void nextTick(() => {
+            isShowListAdd.value = true
+          })
+          break
+        case 'edit':
+          showEdit.value = true
+          break
+        case 'copyName':
+          clipboardWriteText(formatMusicName(appSetting['download.fileNameTemplate'], track.name, track.singer))
+          break
+        case 'search':
+          void router.push({
+            path: '/search',
+            query: { text: `${track.name} ${track.singer}` },
+          })
+          break
+        case 'remove': {
+          void dialog.confirm({
+            message: window.i18n.t('playlists__library_remove_tip', { name: track.name }),
+            cancelButtonText: window.i18n.t('cancel_button_text_2'),
+            confirmButtonText: window.i18n.t('confirm_button_text'),
+          }).then(async(isRemove) => {
+            if (!isRemove) return
+            // 与 autoCleanJunk 同序：先删托管副本（原始文件不动），再删记录（级联清歌单引用）
+            await deleteOrphanFiles([`${mediaDir.value}/${track.id}.${track.ext}`])
+            await localLibraryRemove([track.id])
+            window.app_event.emit('myListUpdate', [LIST_IDS.LOCAL_LIBRARY])
+            await load()
+          })
+          break
+        }
       }
-      if (action == 'edit') showEdit.value = true
     }
+
+    // 加入歌单弹窗（与 ListMusicTable 共用 common-list-add-modal）
+    const isShowListAdd = ref(false)
+    const addMusicInfo = computed(() => (editTrack.value ? entryFor(editTrack.value) : null))
+    const addExcludeListIds = [LIST_IDS.LOCAL_LIBRARY]
+    // 模板取不到模块作用域的 LIST_IDS，经这里转一手
+    const libraryListId = LIST_IDS.LOCAL_LIBRARY
 
     // 行尾浮现的「编辑」快捷键（票 13）：与右键菜单的编辑同一弹窗
     const handleEdit = (track) => {
@@ -279,6 +346,10 @@ export default {
       showEdit,
       showLyric,
       lyricTrack,
+      isShowListAdd,
+      addMusicInfo,
+      addExcludeListIds,
+      libraryListId,
       handleOpenLyric,
       handleRowContextmenu,
       handleItemMenuClick,
@@ -319,9 +390,23 @@ export default {
   font-variant-numeric: tabular-nums;
 }
 
+// 次级钮：描边透明底，高度与主钮（base-btn 默认 33px）对齐。
+// 双写类名抬特异性：压过 baseBtn 模块里的 border:none / padding（同特异性时看打包顺序，不稳）
+.ghostBtn.ghostBtn {
+  box-sizing: border-box;
+  height: 33px;
+  padding: 0 14px;
+  border: 1px solid var(--color-primary-light-500);
+  font-size: 12.8px;
+  color: var(--color-font-label);
+}
+
 .search {
   flex: none;
   width: 200px;
+  // 一行里的控件统一 32px 高（此前搜索框/胶囊/两个按钮各按自身默认高度，参差 4 种）
+  height: 32px;
+  box-sizing: border-box;
 }
 
 .capsules {
@@ -339,7 +424,11 @@ export default {
 
 .capsule {
   flex: none;
-  padding: 3px 12px;
+  box-sizing: border-box;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 14px;
   border: 1px solid var(--color-primary-light-500);
   border-radius: 999px;
   font-size: 12px;

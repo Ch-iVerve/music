@@ -463,6 +463,8 @@
   "playlists__rescan_none": "Directory and library are in sync — nothing to do",
   "playlists__rescan_close": "Close",
   "playlists__edit_title": "Edit Info",
+  "playlists__library_remove": "Remove from Library",
+  "playlists__library_remove_tip": "\"{name}\" will be removed from the library and all playlists, and its managed audio copy will be deleted. Your original files are not affected.",
   "playlists__edit_name": "Title",
   "playlists__edit_singer": "Artist",
   "playlists__edit_album": "Album",

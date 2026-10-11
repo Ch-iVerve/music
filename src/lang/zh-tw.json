@@ -463,6 +463,8 @@
   "playlists__rescan_none": "目錄與庫完全一致，無需處理",
   "playlists__rescan_close": "關閉",
   "playlists__edit_title": "編輯資訊",
+  "playlists__library_remove": "從曲庫中移除",
+  "playlists__library_remove_tip": "「{name}」將從曲庫與所有歌單中移除，託管的音訊副本也會一併刪除；你的原始檔案不受影響。",
   "playlists__edit_name": "歌名",
   "playlists__edit_singer": "歌手",
   "playlists__edit_album": "專輯",
