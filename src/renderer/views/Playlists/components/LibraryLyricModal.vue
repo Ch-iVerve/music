@@ -5,7 +5,7 @@
 
       <!-- 试听条：独立音频实例，不劫持主播放器（spec D12） -->
       <div :class="$style.playerBar">
-        <button :class="$style.playBtn" :aria-label="playing ? $t('playlists__lyric_pause') : $t('playlists__lyric_play')" @click="togglePlay">
+        <button :class="$style.playBtn" :aria-label="playing ? $t('playlists__lyric_pause') : $t('playlists__lyric_play')" :title="playing ? $t('playlists__lyric_pause') : $t('playlists__lyric_play')" @click="togglePlay">
           <svg-icon :name="playing ? 'fullscreen-exit' : 'play-outline'" :class="$style.playIcon" />
         </button>
         <span :class="$style.time">{{ formatTime(currentTime) }} / {{ formatTime(duration) }}</span>

@@ -74,7 +74,9 @@ export const exportListAsPackage = async(
 
   if (json) {
     const jsonPath = path.join(targetDir, `lx_list_part_${filterFileName(listInfo.name)}.json`)
-    // 与现有「导出列表」完全同构（playListPart_v2）：应用自身的列表导入可直接读回
+    // 与现有「导出列表」完全同构（playListPart_v2）：应用自身的列表导入可直接读回。
+    // 注意口径：JSON 是「可再导入的元数据快照」，用全量 musics（在线/失效条目也在内）；
+    // 而副本与 m3u8 只含上面分类出的 items——跳过条目只进汇总，两处数字不必一致
     await saveStrToFile(jsonPath, JSON.stringify({
       type: 'playListPart_v2',
       data: { ...listInfo, list: musics },

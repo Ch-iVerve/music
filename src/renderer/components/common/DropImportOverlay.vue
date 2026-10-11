@@ -28,6 +28,7 @@ export default {
 .overlay {
   position: fixed;
   inset: 0;
+  // 全屏拖放遮罩必须压过播放详情页（z-index 10）与弹窗层，拖拽进行中才出现，与常规层级体系不同轴
   z-index: 900;
   display: flex;
   align-items: center;
