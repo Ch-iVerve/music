@@ -45,12 +45,13 @@
           <span :class="$style.headerLabel" :title="item.label">{{ item.label }}</span>
           <span :class="$style.headerCount">{{ item.count }}</span>
         </button>
-        <!-- 曲目行 -->
+        <!-- 曲目行：单击定位，mod(Ctrl/Cmd)+点击切换选中、shift+点击范围选中（票 10/11 的库视图入口） -->
         <div
           v-else
-          :class="[$style.row, { [$style.missing]: isMediaPathMissing(item.track.filePath) }]"
+          :class="[$style.row, { [$style.missing]: isMediaPathMissing(item.track.filePath), [$style.selected]: selectedKeys.has(item.track.id) }]"
           :data-index="item.playIndex"
           :title="isMediaPathMissing(item.track.filePath) ? $t('playlists__missing_file_tip') : null"
+          @click="handleRowClick($event, item)"
           @dblclick="handlePlay(item.playIndex)"
           @contextmenu.prevent="handleRowContextmenu($event, item.track)"
         >
@@ -81,6 +82,12 @@
       v-model:show="isShowListAdd" :is-move="false" :from-list-id="libraryListId"
       :music-info="addMusicInfo" :exclude-list-id="addExcludeListIds" teleport="#view"
     />
+    <!-- 批量编辑（票 10 的库视图入口）：多选 ≥2 时菜单出现 -->
+    <library-batch-edit-modal :show="showBatchEdit" :musics="batchEditMusics" @close="showBatchEdit = false" @done="handleBatchEditDone" />
+    <!-- 导出向导（票 11 的库视图入口）：导出当前选中的若干首；listInfo 是伪列表（只取 name 进文件名与 JSON），
+         id 用 `local_library_export`——不能带库节点自己的 id（local_library）：导入侧会按 data.id 找不到目标
+         就拿它新建自建列表，撞上库节点 id 会污染列表解析 -->
+    <library-export-modal :show="showExportWizard" :list-info="wizardListInfo" :musics="wizardMusics" @close="showExportWizard = false" />
     <library-edit-modal :show="showEdit" :track="editTrack" @close="showEdit = false" @saved="load" @edit-lyrics="handleOpenLyric" />
     <library-lyric-modal :show="showLyric" :track="lyricTrack" @close="showLyric = false" @saved="load" />
 
@@ -97,6 +104,8 @@ import LibraryCover from './LibraryCover.vue'
 import LibraryRescanModal from './LibraryRescanModal.vue'
 import LibraryEditModal from './LibraryEditModal.vue'
 import LibraryLyricModal from './LibraryLyricModal.vue'
+import LibraryBatchEditModal from './LibraryBatchEditModal.vue'
+import LibraryExportModal from './LibraryExportModal.vue'
 import { LIST_IDS } from '@common/constants'
 import { getEnvParams, localLibraryGetAll, localLibraryRemove, showSelectDialog } from '@renderer/utils/ipc'
 import { appSetting } from '@renderer/store/setting'
@@ -135,6 +144,8 @@ export default {
     LibraryRescanModal,
     LibraryEditModal,
     LibraryLyricModal,
+    LibraryBatchEditModal,
+    LibraryExportModal,
   },
   setup() {
     const router = useRouter()
@@ -201,6 +212,8 @@ export default {
       tracks.value = await localLibraryGetAll()
       // 失效核对（票 06）：打开库即异步核对，标记是响应式的（scoped slot 追踪），丢了会在行上出现徽标
       void checkAvailability(tracks.value.map(track => `${mediaDir.value}/${track.id}.${track.ext}`))
+      // 库可能已变（重扫/导入/移除都走这里），旧选择里有失效键，直接清空最稳
+      clearSelection()
     }
     onMounted(async() => {
       mediaDir.value = (await getEnvParams()).mediaDir
@@ -245,19 +258,61 @@ export default {
       { name: window.i18n.t('list__play'), action: 'play' },
       { name: window.i18n.t('list__play_later'), action: 'playLater' },
       { name: window.i18n.t('list__add_to'), action: 'addTo' },
+      // 批量编辑（票 10 的库视图入口）：与 ListMusicTable 同语义，多选 ≥2 才出现
+      { name: window.i18n.t('playlists__batch_edit'), action: 'batch_edit', hide: selectedKeys.value.size < 2 },
       { name: window.i18n.t('playlists__edit_title'), action: 'edit' },
       { name: window.i18n.t('list__copy_name'), action: 'copyName' },
       { name: window.i18n.t('list__search'), action: 'search' },
+      // 导出向导（票 11 的库视图入口）：导出当前选中的曲目
+      { name: window.i18n.t('playlists__export_wizard'), action: 'export_wizard', hide: selectedKeys.value.size < 1 },
       { name: window.i18n.t('playlists__library_remove'), action: 'remove' },
     ]))
     // 菜单动作都吃 MusicInfoLocal 形态（与播放用的同一转换）
     const entryFor = (track) => buildLocalEntry(track, mediaDir.value)
+
+    // 多选（票 10/11 的库视图入口）：mod(Ctrl/Cmd)+点击切换、shift+点击范围选，
+    // 与 ListMusicTable 同一套交互语义（它走全局 key_event，这里直接读事件修饰键，行为等价）
+    const selectedKeys = ref(new Set())
+    let lastSelectKey = null
+    const trackRowKeys = computed(() => rows.value.filter(r => r.type == 'track').map(r => r.track.id))
+    const handleRowClick = (event, item) => {
+      const key = item.track.id
+      if (event.shiftKey && lastSelectKey != null) {
+        const keys = trackRowKeys.value
+        const a = keys.indexOf(lastSelectKey)
+        const b = keys.indexOf(key)
+        if (a > -1 && b > -1) {
+          const next = new Set(selectedKeys.value)
+          for (let i = Math.min(a, b); i <= Math.max(a, b); i++) next.add(keys[i])
+          selectedKeys.value = next
+        }
+        return
+      }
+      if (event.ctrlKey || event.metaKey) {
+        const next = new Set(selectedKeys.value)
+        if (next.has(key)) next.delete(key)
+        else next.add(key)
+        selectedKeys.value = next
+      }
+      lastSelectKey = key
+    }
+    const clearSelection = () => {
+      selectedKeys.value = new Set()
+      lastSelectKey = null
+    }
+    // 选中条目按库顺序输出（Set 是点击顺序，导出/编辑要稳定序）
+    const selectedEntries = computed(() => tracks.value
+      .filter(track => selectedKeys.value.has(track.id))
+      .map(track => entryFor(track)))
     const handleRowContextmenu = (event, track) => {
       itemMenuLocation.value = { x: event.clientX, y: event.clientY }
       editTrack.value = track
       isShowItemMenu.value = true
     }
     const handleItemMenuClick = (action) => {
+      // 点完任意项先收菜单（与左栏 useMenu 的 menuClick 同纪律）——不收会把菜单留在原地
+      // 压住后续弹窗（真机验收 2026-10-11 咬过：批量编辑弹窗被菜单盖住）
+      isShowItemMenu.value = false
       const track = editTrack.value
       if (!track || !action) return
       switch (action.action) {
@@ -274,6 +329,29 @@ export default {
             isShowListAdd.value = true
           })
           break
+        case 'batch_edit': {
+          const entries = selectedEntries.value
+          if (entries.length < 2) break
+          batchEditMusics.value = entries
+          showBatchEdit.value = true
+          break
+        }
+        case 'export_wizard': {
+          const entries = selectedEntries.value
+          if (!entries.length) break
+          // 伪列表：只取 name（进文件名与 JSON）；id 不能用库节点自己的 id——导入侧
+          // 找不到目标列表时会拿 data.id 新建自建列表，`local_library` 会撞库节点
+          wizardListInfo.value = {
+            id: 'local_library_export',
+            name: window.i18n.t('playlists__local_library'),
+            source: '',
+            sourceListId: '',
+            locationUpdateTime: null,
+          }
+          wizardMusics.value = entries
+          showExportWizard.value = true
+          break
+        }
         case 'edit':
           showEdit.value = true
           break
@@ -310,6 +388,20 @@ export default {
     const addExcludeListIds = [LIST_IDS.LOCAL_LIBRARY]
     // 模板取不到模块作用域的 LIST_IDS，经这里转一手
     const libraryListId = LIST_IDS.LOCAL_LIBRARY
+
+    // 批量编辑（票 10）/ 导出向导（票 11）的库视图入口弹窗
+    const showBatchEdit = ref(false)
+    const batchEditMusics = ref([])
+    // 批量编辑逐首写回完成 → 清选择并重拉（内嵌 tag 变了，行上歌手/专辑等要刷新）；
+    // 同步发 myListUpdate：本地歌单里引用这些条目的表格也要刷新元数据（与移除流程同款）
+    const handleBatchEditDone = async() => {
+      clearSelection()
+      window.app_event.emit('myListUpdate', [LIST_IDS.LOCAL_LIBRARY])
+      await load()
+    }
+    const showExportWizard = ref(false)
+    const wizardListInfo = ref(null)
+    const wizardMusics = ref([])
 
     // 行尾浮现的「编辑」快捷键（票 13）：与右键菜单的编辑同一弹窗
     const handleEdit = (track) => {
@@ -350,6 +442,14 @@ export default {
       addMusicInfo,
       addExcludeListIds,
       libraryListId,
+      selectedKeys,
+      handleRowClick,
+      showBatchEdit,
+      batchEditMusics,
+      handleBatchEditDone,
+      showExportWizard,
+      wizardListInfo,
+      wizardMusics,
       handleOpenLyric,
       handleRowContextmenu,
       handleItemMenuClick,
@@ -392,6 +492,13 @@ export default {
 
 // 次级钮：描边透明底，高度与主钮（base-btn 默认 33px）对齐。
 // 双写类名抬特异性：压过 baseBtn 模块里的 border:none / padding（同特异性时看打包顺序，不稳）
+.row {
+  // 选中行（mod/shift 多选）与 ListMusicTable 的 active 同 token
+  &.selected {
+    background-color: var(--color-primary-background-active);
+  }
+}
+
 .ghostBtn.ghostBtn {
   box-sizing: border-box;
   height: 33px;

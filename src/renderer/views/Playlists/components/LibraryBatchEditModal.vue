@@ -26,7 +26,8 @@
         </div>
         <p :class="$style.progress">{{ $t('playlists__batch_edit_progress', { done, total }) }}</p>
         <div :class="$style.footer">
-          <base-btn :disabled="running || done >= total" @click="handleStart">{{ $t('playlists__edit_save') }}</base-btn>
+          <!-- done >= total 只该在**开跑之后**禁重入（total=0 的初始态两者相等，会把保存键天生禁死） -->
+          <base-btn :disabled="running || (total > 0 && done >= total)" @click="handleStart">{{ $t('playlists__edit_save') }}</base-btn>
           <base-btn @click="handleClose">{{ $t('playlists__edit_cancel') }}</base-btn>
         </div>
       </template>
