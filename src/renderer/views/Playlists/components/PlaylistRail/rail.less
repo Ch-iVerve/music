@@ -43,6 +43,9 @@
 }
 .listsItem {
   position: relative;
+  // 行内横排：名称 + 行尾「⋯」同行（否则 button 落到下一行，占出一行「⋯」，真机截图咬过人）
+  display: flex;
+  align-items: center;
   transition: .2s ease;
   transition-property: color, background-color, opacity;
   background-color: transparent;
@@ -99,13 +102,15 @@
   }
 }
 .listsLabel {
+  // li 已是 flex：label 占满剩余宽度，行尾数量徽标才能贴到行末
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 8px;
   height: @lists-item-height;
   padding: 0 4px 0 10px;
   font-size: 13px;
-  min-width: 0;
 }
 // 行内小封面（云端真封面）：22px，弱化到「识别用」而不是「装饰用」
 .listsCover {

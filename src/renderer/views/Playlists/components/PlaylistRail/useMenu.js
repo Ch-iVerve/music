@@ -1,7 +1,6 @@
 import { computed, ref, reactive, nextTick } from '@common/utils/vueTools'
 import { useI18n } from '@renderer/plugins/i18n'
 import { userLists } from '@renderer/store/list/state'
-import musicSdk from '@renderer/utils/musicSdk'
 import { addLocalFile } from './actions'
 
 export default ({
@@ -10,12 +9,8 @@ export default ({
   handleRename,
   handleDuplicateList,
   handleSortList,
-  handleOpenSourceDetailPage,
-  handleCopySourceLink,
   handleImportList,
-  handleExportList,
   handleShowExportWizard,
-  handleUpdateSourceList,
   handleRemove,
 }) => {
   const menuControl = reactive({
@@ -23,16 +18,18 @@ export default ({
     duplicate: true,
     sort: true,
     local_file: true,
-    sourceDetail: true,
     import: true,
     export: true,
-    sync: false,
     remove: true,
   })
   const t = useI18n()
   const menuLocation = reactive({ x: 0, y: 0 })
   const isShowMenu = ref(false)
 
+  // 本组件只服务本地歌单 tab 的左栏（CloudRail 不用它），所以没有 QQ 源列表：
+  // 「更新 / 歌单详情页 / 复制歌单链接」在这里**永远置灰**，是纯噪声——直接不再出现（真机反馈：菜单太乱）。
+  // 导出只留「导出…」向导：向导的 JSON 与旧「导出」的 .lxmc 同构（core/localLibrary/export.ts 的
+  // playListPart_v2，应用自身导入可直接读回），两份导出入口只留一个。
   const menus = computed(() => {
     return [
       {
@@ -56,29 +53,8 @@ export default ({
         disabled: !menuControl.local_file,
       },
       {
-        name: t('lists__sync'),
-        action: 'sync',
-        disabled: !menuControl.sync,
-      },
-      {
-        name: t('lists__source_detail'),
-        action: 'sourceDetail',
-        disabled: !menuControl.sourceDetail,
-      },
-      // 复制歌单链接（工单 02）：与「歌单详情页」同一条 URL，只是不打开而是复制
-      {
-        name: t('lists__copy_link'),
-        action: 'copyLink',
-        disabled: !menuControl.sourceDetail,
-      },
-      {
         name: t('lists__import'),
         action: 'import',
-        disabled: !menuControl.export,
-      },
-      {
-        name: t('lists__export'),
-        action: 'export',
         disabled: !menuControl.export,
       },
       // 导出向导（票 11）：JSON / m3u8 / 复制音频文件三选勾
@@ -95,39 +71,18 @@ export default ({
     ]
   })
 
-  const assertSupportDetail = (source, index) => {
-    if (source) {
-      const { sourceListId } = userLists[index]
-      if (sourceListId) {
-        if (/board__/.test(sourceListId)) {
-          // const id = sourceListId.replace(/board__/, '')
-          return !!musicSdk[source]?.leaderboard?.getDetailPageUrl
-        } else {
-          return !!musicSdk[source]?.songList?.getDetailPageUrl
-        }
-      }
-    }
-    return false
-  }
-
   const showMenu = (event, index) => {
-    let source
     switch (index) {
       case -1:
       case -2:
         menuControl.rename = false
         menuControl.remove = false
-        menuControl.sync = false
         break
       default:
         menuControl.rename = true
         menuControl.remove = true
-        source = userLists[index].source
-        menuControl.sync = !!source && !!musicSdk[source]?.songList
         break
     }
-    // menuControl.sort = !!getList(this.getTargetListInfo(index)?.id).length
-    menuControl.sourceDetail = assertSupportDetail(source, index)
 
     menuLocation.x = event.pageX
     menuLocation.y = event.pageY
@@ -153,7 +108,6 @@ export default ({
   }
 
   const menuClick = (action, index) => {
-    // console.log(action)
     hideMenu()
     if (!action) return
     const listInfo = getListInfo(index)
@@ -170,23 +124,11 @@ export default ({
       case 'local_file':
         addLocalFile(listInfo)
         break
-      case 'sourceDetail':
-        handleOpenSourceDetailPage(listInfo)
-        break
-      case 'copyLink':
-        handleCopySourceLink(listInfo)
-        break
       case 'import':
         handleImportList(listInfo, index)
         break
-      case 'export':
-        handleExportList(listInfo)
-        break
       case 'export_wizard':
         handleShowExportWizard?.(listInfo)
-        break
-      case 'sync':
-        handleUpdateSourceList(listInfo)
         break
       case 'remove':
         handleRemove(listInfo)
@@ -199,6 +141,7 @@ export default ({
     menuLocation,
     isShowMenu,
     showMenu,
+    hideMenu,
     menuClick,
   }
 }

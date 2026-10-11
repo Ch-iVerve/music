@@ -75,10 +75,8 @@
 </template>
 
 <script>
-import { openUrl, clipboardWriteText } from '@common/utils/electron'
 import { LIST_IDS } from '@common/constants'
 
-import musicSdk from '@renderer/utils/musicSdk'
 import DuplicateMusicModal from './components/DuplicateMusicModal.vue'
 import ListSortModal from './components/ListSortModal.vue'
 import ListUpdateModal from './components/ListUpdateModal.vue'
@@ -144,7 +142,7 @@ export default {
     const dom_lists_list = ref(null)
     const rightClickItemIndex = ref(-10)
 
-    const { handleImportList, handleExportList } = useShare()
+    const { handleImportList } = useShare()
 
     // 行尾「⋯」常用菜单（票 13）：动作名与右键菜单同一套 case，处理器完全复用 handleMenuClick
     const isShowRowMoreMenu = ref(false)
@@ -152,14 +150,16 @@ export default {
     const rowMoreMenus = computed(() => ([
       { name: t('lists__select_local_file'), action: 'local_file' },
       { name: t('playlists__export_wizard'), action: 'export_wizard' },
-      { name: t('lists__export'), action: 'export' },
       { name: t('lists__duplicate'), action: 'duplicate' },
       { name: t('lists__remove'), action: 'remove' },
     ]))
     const handleRowMore = (event, index) => {
+      // 与右键菜单互斥（真机截图咬过人：右键菜单开着时点「⋯」，@click.stop 挡住了
+      // document 的点空白收起监听，两层菜单叠在一起）——开一个先关另一个
+      isShowMenu.value = false
       rightClickItemIndex.value = index
-      rowMoreMenuLocation.x = event.clientX
-      rowMoreMenuLocation.y = event.clientY
+      rowMoreMenuLocation.x = event.pageX
+      rowMoreMenuLocation.y = event.pageY
       isShowRowMoreMenu.value = true
     }
 
@@ -183,36 +183,11 @@ export default {
       wizardMusics.value = await getListMusics(listInfo.id)
       showExportWizard.value = true
     }
-    const { isShowListUpdateModal, handleUpdateSourceList } = useListUpdate()
+    const { isShowListUpdateModal } = useListUpdate()
     const { isShowListSortModal, sortListInfo, handleSortList } = useSort()
     const { isShowDuplicateMusicModal, duplicateListInfo, handleDuplicateList } = useDuplicate()
     const { handleRename, handleSaveListName, isShowNewList, isNewListLeave, handleCreateList } = useEditList({ dom_lists_list })
     useListScroll({ dom_lists_list })
-
-    // 歌单 / 榜单在 QQ 侧的网页链接：本仓原有的两个生成器（歌单那个是异步的，要取 id）
-    const getSourceDetailUrl = async(listInfo) => {
-      const { source, sourceListId } = listInfo
-      if (!sourceListId) return ''
-      if (/board__/.test(sourceListId)) {
-        const id = sourceListId.replace(/board__/, '')
-        return musicSdk[source].leaderboard.getDetailPageUrl(id) ?? ''
-      }
-      if (musicSdk[source]?.songList?.getDetailPageUrl) {
-        return (await musicSdk[source].songList.getDetailPageUrl(sourceListId)) ?? ''
-      }
-      return ''
-    }
-
-    const handleOpenSourceDetailPage = async(listInfo) => {
-      const url = await getSourceDetailUrl(listInfo)
-      if (!url) return
-      void openUrl(url)
-    }
-    // 「复制歌单链接」（工单 02）：与上面同一条 URL，只是不打开
-    const handleCopySourceLink = async(listInfo) => {
-      const url = await getSourceDetailUrl(listInfo)
-      if (url) clipboardWriteText(url)
-    }
 
     const handleRemove = (listInfo) => {
       void dialog.confirm({
@@ -235,16 +210,13 @@ export default {
       menuLocation,
       isShowMenu,
       showMenu,
+      hideMenu,
       menuClick,
     } = useMenu({
       emit,
 
       handleImportList,
-      handleExportList,
       handleShowExportWizard,
-      handleUpdateSourceList,
-      handleOpenSourceDetailPage,
-      handleCopySourceLink,
       handleSortList,
       handleDuplicateList,
       handleRename,
@@ -252,6 +224,8 @@ export default {
     })
 
     const handleListsItemRigthClick = (event, index) => {
+      // 与行尾「⋯」菜单互斥（同 handleRowMore 里的注释）
+      isShowRowMoreMenu.value = false
       rightClickItemIndex.value = index
       showMenu(event, index)
     }
@@ -310,9 +284,8 @@ export default {
       menuLocation,
       handleListToggle,
       isModDown,
-      hideMenu: handleMenuClick,
+      hideMenu,
       libraryNodeId: LIST_IDS.LOCAL_LIBRARY,
-      handleExportList,
       handleShowExportWizard,
       showExportWizard,
       wizardListInfo,

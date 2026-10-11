@@ -1,8 +1,7 @@
-import { toRaw } from '@common/utils/vueTools'
-import { openSaveDir, showSelectDialog } from '@renderer/utils/ipc'
+import { showSelectDialog } from '@renderer/utils/ipc'
 import { useI18n } from '@renderer/plugins/i18n'
-import { filterFileName, toNewMusicInfo, fixNewMusicInfoQuality, filterMusicList } from '@renderer/utils'
-import { getListMusics, updateUserList, addListMusics, overwriteListMusics, createUserList } from '@renderer/store/list/action'
+import { toNewMusicInfo, fixNewMusicInfoQuality, filterMusicList } from '@renderer/utils'
+import { updateUserList, addListMusics, overwriteListMusics, createUserList } from '@renderer/store/list/action'
 import { loveList, userLists } from '@renderer/store/list/state'
 import useImportTip from '@renderer/utils/compositions/useImportTip'
 import { dialog } from '@renderer/plugins/Dialog'
@@ -13,19 +12,6 @@ export default () => {
   const t = useI18n()
   const showImportTip = useImportTip()
 
-  const handleExportList = (listInfo: LX.List.MyListInfo) => {
-    if (!listInfo) return
-    void openSaveDir({
-      title: t('lists__export_part_desc'),
-      defaultPath: `lx_list_part_${filterFileName(listInfo.name)}.lxmc`,
-    }).then(async result => {
-      if (result.canceled || !result.filePath) return
-      void window.lx.worker.main.saveLxConfigFile(result.filePath, {
-        type: 'playListPart_v2',
-        data: { ...toRaw(listInfo), list: toRaw(await getListMusics(listInfo.id)) },
-      })
-    })
-  }
   const handleImportList = (listInfo: LX.List.MyListInfo, index: number) => {
     void showSelectDialog({
       title: t('lists__import_part_desc'),
@@ -111,7 +97,6 @@ export default () => {
   }
 
   return {
-    handleExportList,
     handleImportList,
   }
 }
