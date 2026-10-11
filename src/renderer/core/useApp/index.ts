@@ -2,8 +2,10 @@ import { getEnvParams, sendInited } from '@renderer/utils/ipc'
 
 import { proxy, isFullscreen, themeId } from '@renderer/store'
 import { appSetting } from '@renderer/store/setting'
+import { applyTheme, getThemes } from '@renderer/store/utils'
 import { startFollowFeedSchedule } from '@renderer/store/followFeed/action'
 import { restoreTimeoutStop } from '@renderer/core/player/timeoutStop'
+import { watch } from '@common/utils/vueTools'
 
 import useSync from './useSync'
 import useOpenAPI from './useOpenAPI'
@@ -25,6 +27,16 @@ export default () => {
   proxy.port = appSetting['network.proxy.port']
   isFullscreen.value = appSetting['common.startInFullscreen']
   themeId.value = appSetting['theme.id']
+
+  // 冷启动应用持久化主题：此前 applyTheme 只在「主题变更事件」与设置页被调，
+  // 冷启动从未应用，重启永远停在构建期默认色（体验走查 2026-10-11：
+  // theme.id=black 重启回浅色）。watch immediate 兜住 appSetting 异步装载完成的时机；
+  // 与设置页/变更事件的重复应用是幂等的（setTheme 整体覆盖）。
+  watch(() => [appSetting['theme.id'], appSetting['theme.lightId'], appSetting['theme.darkId']], ([id, lightId, darkId]) => {
+    getThemes(({ dataPath }) => {
+      applyTheme(id, lightId, darkId, dataPath)
+    })
+  }, { immediate: true })
 
   const router = useRouter()
   const initSyncService = useSync()

@@ -24,7 +24,7 @@
             <base-input v-model="form.year" :class="$style.input" type="text" :placeholder="'—'" />
           </label>
         </div>
-        <p :class="$style.progress">{{ $t('playlists__batch_edit_progress', { done, total }) }}</p>
+        <p :class="$style.progress">{{ $t('playlists__batch_edit_progress', { done, total: totalShown }) }}</p>
         <div :class="$style.footer">
           <!-- done >= total 只该在**开跑之后**禁重入（total=0 的初始态两者相等，会把保存键天生禁死） -->
           <base-btn :disabled="running || (total > 0 && done >= total)" @click="handleStart">{{ $t('playlists__edit_save') }}</base-btn>
@@ -75,6 +75,8 @@ export default {
     const result = ref({ ok: 0, failed: [] })
 
     const skipNum = computed(() => props.musics.filter(m => m.source != 'local' || !m.meta.trackId).length)
+    // 进度展示：未开跑（total=0）时按当前可选条数显示 0/N，避免出现「进度 0/0」（体验走查 2026-10-11）
+    const totalShown = computed(() => total.value || props.musics.filter(m => m.source == 'local' && m.meta.trackId).length)
 
     const reset = () => {
       form.value = { singer: '', album: '', genre: '', year: '' }
@@ -131,6 +133,7 @@ export default {
       running,
       done,
       total,
+      totalShown,
       finished,
       result,
       skipNum,

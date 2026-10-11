@@ -1,7 +1,8 @@
 <template>
   <material-modal :show="show" teleport="#view" width="50%" @close="handleClose">
     <main :class="$style.main">
-      <h2 :class="$style.title">{{ $t('playlists__export_title', { name: listInfo?.name ?? '' }) }}</h2>
+      <!-- 标题带曲目数：库视图入口导出的是「选中的 N 首」而非整表（体验走查 2026-10-11），歌单入口的 N 也属实 -->
+      <h2 :class="$style.title">{{ $t('playlists__export_title_count', { name: listInfo?.name ?? '', num: musics.length }) }}</h2>
 
       <template v-if="!finished">
         <div :class="$style.row">

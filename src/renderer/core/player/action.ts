@@ -233,7 +233,9 @@ const handleRestorePlay = async(restorePlayInfo: LX.Player.SavedPlayInfo) => {
   }).catch((err) => {
     console.log(err)
     if (musicInfo.id != playMusicInfo.musicInfo?.id) return
-    setAllStatus(window.i18n.t('lyric__load_error'))
+    // 本地曲目的「无结果」是常态不是故障（本地缓存/内嵌/同曲多源都没词）——文案按「未找到歌词」说，
+    // 「获取失败」只留给在线源（体验走查 2026-10-11）。musicInfo 联合里有 ListItem，先收窄再取 source
+    setAllStatus(window.i18n.t(('source' in musicInfo && musicInfo.source == 'local') ? 'lyric__no_lyric' : 'lyric__load_error'))
   }).finally(() => {
     // 歌词结果落定（成功/失败都算）——对齐窗口到此关上，「有没有歌词」可以下结论。
     // 过期响应不关窗：窗口已归切歌后的新歌所有
@@ -288,7 +290,9 @@ const handlePlay = () => {
   }).catch((err) => {
     console.log(err)
     if (musicInfo.id != playMusicInfo.musicInfo?.id) return
-    setAllStatus(window.i18n.t('lyric__load_error'))
+    // 本地曲目的「无结果」是常态不是故障（本地缓存/内嵌/同曲多源都没词）——文案按「未找到歌词」说，
+    // 「获取失败」只留给在线源（体验走查 2026-10-11）。musicInfo 联合里有 ListItem，先收窄再取 source
+    setAllStatus(window.i18n.t(('source' in musicInfo && musicInfo.source == 'local') ? 'lyric__no_lyric' : 'lyric__load_error'))
   }).finally(() => {
     // 歌词结果落定（成功/失败都算）——对齐窗口到此关上，「有没有歌词」可以下结论。
     // 过期响应不关窗：窗口已归切歌后的新歌所有

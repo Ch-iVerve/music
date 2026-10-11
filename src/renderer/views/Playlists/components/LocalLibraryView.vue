@@ -23,7 +23,8 @@
       <base-btn :class="$style.importBtn" :disabled="importing" @click="handleImportFolder">{{ $t('playlists__import_folder') }}</base-btn>
     </div>
 
-    <div v-if="!rows.length" :class="$style.empty">{{ $t('playlists__library_empty') }}</div>
+    <!-- 空态分两种：库真空 vs 搜索无匹配——复用同一句「导入文件夹」提示会把后者读成库被清空（体验走查 2026-10-11） -->
+    <div v-if="!rows.length" :class="$style.empty">{{ $t(tracks.length ? 'playlists__library_none_match' : 'playlists__library_empty') }}</div>
     <virtualized-list
       v-else
       ref="dom_list"

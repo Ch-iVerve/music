@@ -272,13 +272,16 @@ export default {
       mode.value = 'line'
       lines.value = []
       audio = new Audio()
-      audio.addEventListener('timeupdate', () => {
-        currentTime.value = audio.currentTime * 1000
+      // 监听器读**局部实例**而非闭包变量 audio——cleanupAudio 会把外层置 null，
+      // 已挂到旧实例上的事件（timeupdate 等）在残留触发时就会读 null 抛 TypeError
+      const el = audio
+      el.addEventListener('timeupdate', () => {
+        currentTime.value = el.currentTime * 1000
       })
-      audio.addEventListener('loadedmetadata', () => {
-        duration.value = audio.duration * 1000
+      el.addEventListener('loadedmetadata', () => {
+        duration.value = el.duration * 1000
       })
-      audio.addEventListener('ended', () => {
+      el.addEventListener('ended', () => {
         playing.value = false
       })
       try {
