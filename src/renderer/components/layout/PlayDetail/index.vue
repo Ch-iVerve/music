@@ -95,7 +95,7 @@ export default {
     // 对齐缓冲（用户 2026-10-09 反馈）：切歌后新歌歌词未落定前隐藏信息块（isAligning → opacity 0），
     // 落定后在新位置整块淡入——「居中↔左侧」的换位发生在不可见期间，看不到位置跳变。
     // 窗口开在 setPlayMusicInfo（切歌），关在 getLyricInfo 落定（core/player/action.ts 的 finally）
-    const isAligning = computed(() => lyric.isLoading)
+    const isAligning = computed(() => lyric.isAligning)
     const router = useRouter()
 
     let clickTime = 0

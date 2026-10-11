@@ -13,14 +13,14 @@ export const lyric = reactive<{
   line: number
   offset: number // 歌词延迟
   tempOffset: number // 歌词临时延迟
-  isLoading: boolean // 对齐窗口：切歌已清零 lines 但新歌歌词未落定，「有没有歌词」还不能下结论
+  isAligning: boolean // 对齐窗口：切歌已清零 lines 但新歌歌词未落定，「有没有歌词」还不能下结论（消费点 PlayDetail 同名）
 }>({
   lines: [],
   text: '',
   line: 0,
   offset: 0, // 歌词延迟
   tempOffset: 0, // 歌词临时延迟
-  isLoading: false,
+  isAligning: false,
 })
 
 export const setLines = (lines: Line[]) => {
@@ -37,6 +37,6 @@ export const setOffset = (offset: number) => {
 export const setTempOffset = (offset: number) => {
   lyric.tempOffset = offset
 }
-export const setLoading = (isLoading: boolean) => {
-  lyric.isLoading = isLoading
+export const setAligning = (isAligning: boolean) => {
+  lyric.isAligning = isAligning
 }

@@ -85,7 +85,9 @@ export const exportListAsPackage = async(
   }
 
   if (copyFiles) {
-    const { exportCopyFiles } = await import('@renderer/worker/main/library')
+    // 复制走 worker seam（window.lx.worker.main 经 exposeWorker 暴露整个 library 模块）——
+    // 不用动态 import 直接拉实现：那会把 worker 代码打进主线程 bundle、复制占 UI 线程（架构评审 C3）
+    const exportCopyFiles = window.lx.worker.main.exportCopyFiles
     const tasks: Array<{ src: string, dest: string }> = []
     items.forEach((item, index) => {
       tasks.push({
