@@ -106,8 +106,8 @@ import LibraryCover from './LibraryCover.vue'
 import LibraryRescanModal from './LibraryRescanModal.vue'
 import LibraryEditModal from './LibraryEditModal.vue'
 import LibraryLyricModal from './LibraryLyricModal.vue'
-import LibraryBatchEditModal from './LibraryBatchEditModal.vue'
-import LibraryExportModal from './LibraryExportModal.vue'
+import LibraryBatchEditModal from '@renderer/components/common/library/LibraryBatchEditModal.vue'
+import LibraryExportModal from '@renderer/components/common/library/LibraryExportModal.vue'
 import { LIST_IDS } from '@common/constants'
 import { getEnvParams, localLibraryGetAll, localLibraryRemove, showSelectDialog } from '@renderer/utils/ipc'
 import { formatMusicName, DEFAULT_MUSIC_NAME_TEMPLATE } from '@renderer/utils'
@@ -490,8 +490,10 @@ export default {
 <style lang="less" module>
 @import '@renderer/assets/styles/layout.less';
 
+// 页面主体：作为「本地音乐」页面壳的 flex 子项（任务条在它上方），吃掉剩余高度
 .container {
-  height: 100%;
+  flex: auto;
+  min-height: 0;
   display: flex;
   flex-flow: column nowrap;
   min-width: 0;

@@ -1,16 +1,6 @@
 <template>
   <div ref="dom_lists" :class="$style.lists">
     <ul ref="dom_lists_list" class="scroll" :class="[$style.listsContent, { [$style.sortable]: isModDown }]">
-      <!-- 「全部本地音乐」固定节点（票 03）：不是歌单，是库聚合视图的选择器；行尾带数量徽标 -->
-      <li
-        :class="[$style.listsItem, {[$style.active]: listId == libraryNodeId}]"
-        :aria-label="$t('playlists__local_library')" :aria-selected="listId == libraryNodeId"
-      >
-        <span :class="$style.listsLabel" :title="$t('playlists__local_library')" @click="handleListToggle(libraryNodeId)">
-          <span :class="$style.listsName">{{ $t('playlists__local_library') }}</span>
-          <span v-if="libraryCount > 0" :class="$style.rowCount">{{ libraryCount }}</span>
-        </span>
-      </li>
       <li v-if="userLists.length === 0 && !isShowNewList" :class="$style.railTip">
         <span>{{ $t('playlists__local_empty') }}</span>
       </li>
@@ -75,18 +65,15 @@
 </template>
 
 <script>
-import { LIST_IDS } from '@common/constants'
-
 import DuplicateMusicModal from './components/DuplicateMusicModal.vue'
 import ListSortModal from './components/ListSortModal.vue'
 import ListUpdateModal from './components/ListUpdateModal.vue'
 
 import { userLists, fetchingListStatus } from '@renderer/store/list/state'
 import { removeUserList, getListMusics } from '@renderer/store/list/action'
-import { localLibraryGetAll } from '@renderer/utils/ipc'
-import LibraryExportModal from '../LibraryExportModal.vue'
+import LibraryExportModal from '@renderer/components/common/library/LibraryExportModal.vue'
 
-import { computed, onBeforeUnmount, ref, shallowReactive, watch } from '@common/utils/vueTools'
+import { computed, ref, shallowReactive, watch } from '@common/utils/vueTools'
 import { useRoute, useRouter } from '@common/utils/vueRouter'
 import { withTab } from '../../tabs'
 
@@ -162,17 +149,6 @@ export default {
       rowMoreMenuLocation.y = event.pageY
       isShowRowMoreMenu.value = true
     }
-
-    // 「全部本地音乐」节点徽标（票 13）：曲库数量随导入/删除同步
-    const libraryCount = ref(0)
-    const refreshLibraryCount = async() => {
-      libraryCount.value = (await localLibraryGetAll()).length
-    }
-    void refreshLibraryCount()
-    window.app_event.on('myListUpdate', refreshLibraryCount)
-    onBeforeUnmount(() => {
-      window.app_event.off('myListUpdate', refreshLibraryCount)
-    })
 
     // 导出向导（票 11）：快照歌单条目进弹窗（导出只读，无并发问题）
     const showExportWizard = ref(false)
@@ -285,7 +261,6 @@ export default {
       handleListToggle,
       isModDown,
       hideMenu,
-      libraryNodeId: LIST_IDS.LOCAL_LIBRARY,
       handleShowExportWizard,
       showExportWizard,
       wizardListInfo,
@@ -294,7 +269,6 @@ export default {
       rowMoreMenuLocation,
       rowMoreMenus,
       handleRowMore,
-      libraryCount,
     }
   },
 }

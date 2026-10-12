@@ -151,13 +151,14 @@ export default {
               enable: true,
             },
             {
-              to: '/download',
-              tips: t('download'),
-              icon: '#icon-nav-download',
+              // 「本地音乐」：库升为一级入口（集合概念统一 D3/票 04），承接原「我的下载」的位置；
+              // 下载完成即收编入库（票 03），任务的进行中状态由该页顶部的任务条承接
+              to: '/library',
+              tips: t('local_music'),
+              icon: '#icon-nav-library',
               size,
-              // 集合概念统一（D1/票 03）：下载开关已下架，入口常驻
               enable: true,
-              name: 'Download',
+              name: 'Library',
             },
             {
               // 「我的」组**末位**（工单 03 的验收项：我的音乐 / 我的收藏 / 我的歌单 / 我的下载之后）。

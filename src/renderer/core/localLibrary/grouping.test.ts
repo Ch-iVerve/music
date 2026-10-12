@@ -100,6 +100,6 @@ describe('groupLibraryTracks', () => {
     expect(labelToCount).toEqual({ 下载: 2, 导入: 1 })
     // 缺省映射时显示原值（纯函数不依赖 i18n）
     const raw = groupLibraryTracks(originTracks, 'origin', '', new Set(), '未知')
-    expect(raw.filter(row => row.type == 'header').map(row => row.label).sort((a, b) => a.localeCompare(b))).toEqual(['download', 'import'])
+    expect(raw.filter(row => row.type == 'header').map(row => row.label).sort((a, b) => (a ?? '').localeCompare(b ?? ''))).toEqual(['download', 'import'])
   })
 })

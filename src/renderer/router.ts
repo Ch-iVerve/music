@@ -119,6 +119,16 @@ const router = createRouter({
         name: 'Playlists',
       },
     },
+    // 本地音乐（集合概念统一 D3/票 04）：库从「我的歌单」的固定节点升为一级入口，并与下载合并为一页。
+    // 旧地址 `/download` 与老深链 `/playlists?id=local_library` 都重定向到这里（见下面与 LocalListsPanel）
+    {
+      path: '/library',
+      name: 'Library',
+      component: require('./views/Library/index.vue').default,
+      meta: {
+        name: 'Library',
+      },
+    },
     // 关注动态：左栏「我的」组末位（`NavBar.vue` 的 menuGroups）。`meta.name` 与路由 name
     // 同值——侧栏高亮按 `meta.name` 匹配（与其余一级导航一致）
     {
@@ -141,17 +151,13 @@ const router = createRouter({
         if (id == null || id === 'default' || id === 'love') {
           return { path: '/favorites', query: { ...to.query, id: undefined, tab: 'songs' } }
         }
-        if (id === LIST_IDS.DOWNLOAD) return { path: '/download', query: { ...to.query, id: undefined } }
+        if (id === LIST_IDS.DOWNLOAD) return { path: '/library', query: { ...to.query, id: undefined } }
         return { path: '/playlists', query: { ...to.query } }
       },
     },
     {
       path: '/download',
-      name: 'Download',
-      component: require('./views/Download/index.vue').default,
-      meta: {
-        name: 'Download',
-      },
+      redirect: to => ({ path: '/library', query: { ...to.query } }),
     },
     {
       path: '/setting',

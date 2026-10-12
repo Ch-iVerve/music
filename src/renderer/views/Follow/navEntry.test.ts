@@ -68,9 +68,9 @@ describe('关注动态：左栏入口', () => {
     expect(entry.props('to')).toBe('/follow')
     expect(entry.attributes('aria-label')).toBe(t('follow'))
     expect(entry.attributes('title')).toBe(t('follow'))
-    // 前面四项没被动过（我的音乐 / 我的收藏 / 我的歌单 / 我的下载）
+    // 前四项没被动过（我的音乐 / 我的收藏 / 我的歌单 / 本地音乐——第四项由「我的下载」升级而来）
     expect(links.slice(0, 4).map((link: any) => link.props('to')))
-      .toEqual(['/user', '/favorites', '/playlists', '/download'])
+      .toEqual(['/user', '/favorites', '/playlists', '/library'])
     // `xlink:href` 在 xlink 命名空间里，`attributes()` 取不到，只能断言序列化结果
     expect(entry.find('svg use').element.outerHTML).toContain('#icon-nav-follow')
   })
