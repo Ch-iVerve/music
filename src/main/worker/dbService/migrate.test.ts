@@ -149,15 +149,22 @@ const readUserListIds = (file: string) => inspect(file, db => (db
 /** 全部列表歌曲行（v5→v6 迁移的回读比对用：迁移只建新表，这份数据一个字段都不该动） */
 const readAllListMusics = (file: string) => inspect(file, db => db
   .prepare('SELECT "id", "listId", "name", "singer", "source", "interval", "meta" FROM "main"."my_list_music_info" ORDER BY "listId", "id"')
-  .all())
+  .all() as Array<{ id: string, listId: string, name: string, singer: string, source: string, interval: number | null, meta: string }>)
 const readDislikeRows = (file: string) => inspect(file, db => db
   .prepare('SELECT "type", "content", "meta" FROM "main"."dislike_list" ORDER BY "rowid"')
   .all())
 const readDownloadRows = (file: string) => inspect(file, db => db
   .prepare('SELECT "id", "isComplate", "status", "statusText", "progress_downloaded", "progress_total", "quality", "ext", "fileName", "position" FROM "main"."download_list" ORDER BY "rowid"')
-  .all())
-/** 去掉 `default` 那一档后的计数（迁移必须只动它） */
-const countsWithoutDefault = (counts: Record<string, number>) => Object.fromEntries(Object.entries(counts).filter(([listId]) => listId != 'default'))
+  .all() as Array<{ id: string, isComplate: number, status: string, statusText: string, progress_downloaded: number, progress_total: number, quality: string, ext: string, fileName: string, position: number }>)
+/** `migrateV6` 迁移出的自建列表 id（与 `migrate.ts` 的字面量保持一致；名字是迁移产物，硬编码中文） */
+const LEGACY_LOVE_LIST_ID = 'userlist_love_legacy'
+/**
+ * 去掉「迁移会动的那几档」后的计数，供守恒断言用：`default`（v3 → v4 起被清）、
+ * `love`（v6 → v7 整档迁进 legacy）、`userlist_love_legacy`（v6 → v7 新建）。
+ */
+const stableCounts = (counts: Record<string, number>) => Object.fromEntries(
+  Object.entries(counts).filter(([listId]) => !['default', 'love', LEGACY_LOVE_LIST_ID].includes(listId)),
+)
 
 afterAll(() => {
   try {
@@ -191,7 +198,7 @@ describe('v2 → v5：`music_url` 加 `created_at`', () => {
   })
 
   it('版本号升到 DB_VERSION；别的表一行没动；没留下迁移用的临时表', () => {
-    expect(DB_VERSION).toBe('6')
+    expect(DB_VERSION).toBe('7')
     expect(readVersion(file)).toBe(DB_VERSION)
     expect(readLyricCount(file)).toBe(1)
     // 迁移中途改名出来的表必须收干净。`sqlite_stat*` 是 `init` 里 `PRAGMA optimize` 建的，不算数
@@ -434,7 +441,7 @@ describe('旧库（合成件；设 CHIVERVE_LEGACY_DB 时用真库副本）：db
     expect(readLyricCount(file)).toBeGreaterThan(0)
   })
 
-  it('试听列表（`default`）的数据行被真删，其余列表一行不少（票 08 契约 1）', () => {
+  it('试听列表被真删、我的收藏迁成 legacy 列表，其余列表一首不少（票 08 契约 1 + ADR-0013）', () => {
     const dir = newCaseDir()
     const file = legacyFixture(dir)
     const listCountsBefore = readListMusicCounts(file)
@@ -451,12 +458,20 @@ describe('旧库（合成件；设 CHIVERVE_LEGACY_DB 时用真库副本）：db
     // 真删：两处「default」都清零（不是搬进收藏，也不是留成孤儿行）
     expect(listCountsAfter.default ?? 0).toBe(0)
     expect(orderCountsAfter.default ?? 0).toBe(0)
-    // 其余档逐项守恒（收藏 / 临时 / 自建列表一首都没少）
-    expect(countsWithoutDefault(listCountsAfter)).toEqual(countsWithoutDefault(listCountsBefore))
-    expect(countsWithoutDefault(orderCountsAfter)).toEqual(countsWithoutDefault(orderCountsBefore))
-    // `my_list` 表也一行不多不少（自建列表还在；没有借尸还魂的 default 行）
-    expect(readUserListIds(file)).toEqual(userListIdsBefore.filter(id => id != 'default'))
+    // 迁移：love 整档改挂到 legacy（条目行与排序行一起走，数量守恒）
+    expect(listCountsAfter.love ?? 0).toBe(0)
+    expect(orderCountsAfter.love ?? 0).toBe(0)
+    expect(listCountsAfter[LEGACY_LOVE_LIST_ID] ?? 0).toBe(listCountsBefore.love ?? 0)
+    expect(orderCountsAfter[LEGACY_LOVE_LIST_ID] ?? 0).toBe(orderCountsBefore.love ?? 0)
+    // 其余档逐项守恒（临时 / 自建列表一首都没少）
+    expect(stableCounts(listCountsAfter)).toEqual(stableCounts(listCountsBefore))
+    expect(stableCounts(orderCountsAfter)).toEqual(stableCounts(orderCountsBefore))
+    // `my_list`：default/love 从来不在表里；love 有歌时新增一条 legacy 列表行（真库副本 love 可能为空）
     expect(readUserListIds(file)).not.toContain('default')
+    expect(readUserListIds(file)).not.toContain('love')
+    expect(readUserListIds(file).includes(LEGACY_LOVE_LIST_ID)).toBe((listCountsBefore.love ?? 0) > 0)
+    // 非迁移新增的自建列表一行不多不少（legacy 排在末尾，顺序断言见 v6 → v7 组）
+    expect(readUserListIds(file).filter(id => id != LEGACY_LOVE_LIST_ID)).toEqual(userListIdsBefore)
   })
 })
 
@@ -621,6 +636,8 @@ describe('v4 → v5：补关注动态两张表', () => {
  * 既有数据一行不少、曲目表**为空**（不预置任何行——空库 = 「还没导入过」，导入是票 02 的事）。
  * 另钉一条幂等：版本号被回写成 `'5'` 时重跑不许因「表已存在」抛错
  * （抛错会让 `init` 收成 `null` → 用户库被改名备份后重建空库）。
+ * ⚠️ 迁移链现在会继续跑到 v7（集合概念统一）：下载夹具里那条**已完成**记录会被 `migrateV6` 清掉，
+ * 本组按最终态断言（见「已完成下载被清」）。
  */
 describe('v5 → v6：补本地媒体库表', () => {
   /** 造一份只差 `local_library_track` 的 v5 库（其余表全用当前定义，塞几行既有数据证明迁移没碰它们） */
@@ -638,14 +655,16 @@ describe('v5 → v6：补本地媒体库表', () => {
       insertLegacyListMusics(db, 'userlist_v5', ['v5s1', 'v5s2'])
       db.prepare('INSERT INTO "main"."dislike_list" ("type", "content") VALUES (\'music\', ?)').run('v5 库里的不喜欢@singer')
       db.prepare('INSERT INTO "main"."music_url" ("id", "url", "created_at") VALUES (?, ?, ?)').run('v5_128k', 'https://example.invalid/v5', 0)
-      db.prepare('INSERT INTO "main"."download_list" ("id", "isComplate", "status", "statusText", "progress_downloaded", "progress_total", "url", "quality", "ext", "fileName", "filePath", "musicInfo", "position") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-        .run('dl_v5', 1, 'done', '已完成', 100, 100, null, '128k', 'mp3', 'v5_song.mp3', '/downloads/v5_song.mp3', '{}', 0)
+      // 下载两条：已完成（v6 → v7 要清）与未完成（保留可续）
+      const insertDownload = db.prepare('INSERT INTO "main"."download_list" ("id", "isComplate", "status", "statusText", "progress_downloaded", "progress_total", "url", "quality", "ext", "fileName", "filePath", "musicInfo", "position") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      insertDownload.run('dl_v5_done', 1, 'done', '已完成', 100, 100, null, '128k', 'mp3', 'v5_done.mp3', '/downloads/v5_done.mp3', '{}', 0)
+      insertDownload.run('dl_v5_pending', 0, 'waiting', '等待中', 0, 100, null, '128k', 'mp3', 'v5_pending.mp3', '/downloads/v5_pending.mp3', '{}', 1)
     })()
     db.close()
     return file
   }
 
-  it('init 返回 true；媒体库表建出来；旧数据逐行无损；曲目表为空', () => {
+  it('init 返回 true；媒体库表建出来；列表/缓存/不喜欢无损、已完成下载被清（v7）；曲目表为空', () => {
     const dir = newCaseDir()
     const file = createV5Db(dir)
     expect(readTableNames(file)).not.toContain('local_library_track')
@@ -659,12 +678,12 @@ describe('v5 → v6：补本地媒体库表', () => {
     expect(verifyDB(getDB())).toBe(true)
     expect(readVersion(file)).toBe(DB_VERSION)
     expect(readTableNames(file)).toContain('local_library_track')
-    // 迁移只建新表：既有四类数据逐行原样（在线歌单/收藏/不喜欢/下载）
+    // 列表 / 曲目缓存 / 不喜欢逐行原样；下载只剩未完成项（已完成行随 v7 的 migrateV6 清除）
     expect(readUserListIds(file)).toEqual(listIdsBefore)
     expect(readRows(file)).toEqual(urlsBefore)
     expect(readAllListMusics(file)).toEqual(listMusicsBefore)
     expect(readDislikeRows(file)).toEqual(dislikesBefore)
-    expect(readDownloadRows(file)).toEqual(downloadsBefore)
+    expect(readDownloadRows(file)).toEqual(downloadsBefore.filter(row => row.isComplate != 1))
     expect(localLibraryAll()).toEqual([])
     expect(localLibraryCount()).toBe(0)
   })
@@ -680,5 +699,129 @@ describe('v5 → v6：补本地媒体库表', () => {
     expect(init(dir)).toBe(true)
     expect(verifyDB(getDB())).toBe(true)
     expect(readVersion(file)).toBe(DB_VERSION)
+  })
+})
+
+/**
+ * v6 → v7（集合概念统一，ADR-0013 / spec `.scratch/functional-logic-consolidation/spec.md`）：
+ * love 迁 legacy、default 清残余、旧式条目清除、已完成下载清行、`local_library_track` 重建加 origin。
+ *
+ * 夹具形态 = 用户手上的 v6 库：`local_library_track` 是**旧定义**（无 origin 列，v6 时代原文）。
+ * 数据刻意铺满判据面：
+ * - love 2 首（迁 legacy：条目行 + 排序行）；default 1 首（清残余）
+ * - 旧式本地条目 2 首（`source='local'` 无 trackId：一首正常 meta、一首**坏 JSON**——判据必须容忍）
+ * - 托管本地条目 1 首（`trackId` = id，必须留下）；temp 2 首、自建列表 2 首（原样）
+ * - download_list 1 完成（清）+ 1 未完成（留）；库行 1 首（补 origin='import'）
+ */
+describe('v6 → v7：集合概念统一（love 迁移 / 旧式条目清除 / 下载清行 / origin 列）', () => {
+  /** v6 时代的 `local_library_track` 原文（`git show HEAD:src/main/worker/dbService/tables.ts`，无 origin 列） */
+  const LEGACY_LOCAL_LIBRARY_SQL = `
+    CREATE TABLE "local_library_track" (
+      "id" TEXT NOT NULL,
+      "name" TEXT NOT NULL,
+      "singer" TEXT NOT NULL,
+      "album" TEXT,
+      "interval" TEXT,
+      "ext" TEXT NOT NULL,
+      "size" INTEGER NOT NULL,
+      "year" TEXT,
+      "genre" TEXT,
+      "track_num" TEXT,
+      "disc_num" TEXT,
+      "has_pic" INTEGER NOT NULL,
+      "has_lyric" INTEGER NOT NULL,
+      "imported_at" INTEGER NOT NULL,
+      PRIMARY KEY("id")
+    );
+  `
+  const HOSTED_HASH = 'a'.repeat(40)
+
+  const readLocalLibraryColumns = (file: string) => inspect(file, db => (db.pragma('table_info("local_library_track")') as Array<{ name: string }>).map(column => column.name))
+  const readLocalLibraryOrigins = (file: string) => inspect(file, db => db
+    .prepare('SELECT "id", "origin" FROM "main"."local_library_track" ORDER BY "id"')
+    .all() as Array<{ id: string, origin: string }>)
+
+  const createV6Db = (dir: string) => {
+    const file = dbFileOf(dir)
+    const db = new Database(file)
+    db.exec(Array.from(tables.entries())
+      .map(([name, sql]) => name == 'local_library_track' ? LEGACY_LOCAL_LIBRARY_SQL : sql)
+      .join('\n'))
+    db.exec('INSERT INTO "main"."db_info" ("field_name", "field_value") VALUES (\'version\', \'6\');')
+    db.transaction(() => {
+      db.prepare('INSERT INTO "main"."my_list" ("id", "name", "source", "sourceListId", "position", "locationUpdateTime") VALUES (?, ?, ?, ?, ?, ?)')
+        .run('userlist_v6', 'v6 库里的自建列表', null, null, 0, 0)
+      insertLegacyListMusics(db, 'love', ['lv1', 'lv2'])
+      insertLegacyListMusics(db, 'default', ['df1'])
+      insertLegacyListMusics(db, 'temp', ['tp1', 'tp2'])
+      insertLegacyListMusics(db, 'userlist_v6', ['v6s1', 'v6s2'])
+      // 旧式本地条目（source='local'、meta 无 trackId）：一首正常、一首坏 JSON（判据必须容忍）
+      const insertMusic = db.prepare('INSERT INTO "main"."my_list_music_info" ("id", "listId", "name", "singer", "source", "interval", "meta") VALUES (?, ?, ?, ?, ?, ?, ?)')
+      const insertOrder = db.prepare('INSERT INTO "main"."my_list_music_info_order" ("listId", "musicInfoId", "order") VALUES (?, ?, ?)')
+      insertMusic.run('local_/Music/old1.mp3', 'userlist_v6', '旧式一', 'singer', 'local', 100, JSON.stringify({ filePath: '/Music/old1.mp3' }))
+      insertOrder.run('userlist_v6', 'local_/Music/old1.mp3', 2)
+      insertMusic.run('local_/Music/old2.flac', 'temp', '旧式二', 'singer', 'local', 100, 'not-json')
+      insertOrder.run('temp', 'local_/Music/old2.flac', 2)
+      // 托管条目（trackId = id）：必须留下
+      insertMusic.run(HOSTED_HASH, 'userlist_v6', '托管歌', 'singer', 'local', 100, JSON.stringify({ trackId: HOSTED_HASH, filePath: `/media/${HOSTED_HASH}.mp3` }))
+      insertOrder.run('userlist_v6', HOSTED_HASH, 3)
+      // 库行（旧定义无 origin 列）
+      db.prepare('INSERT INTO "main"."local_library_track" ("id", "name", "singer", "album", "interval", "ext", "size", "year", "genre", "track_num", "disc_num", "has_pic", "has_lyric", "imported_at") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+        .run(HOSTED_HASH, '托管歌', 'singer', null, 100, 'mp3', 1000, null, null, null, null, 0, 0, 1)
+      // 下载：1 完成（清） + 1 未完成（留）
+      const insertDownload = db.prepare('INSERT INTO "main"."download_list" ("id", "isComplate", "status", "statusText", "progress_downloaded", "progress_total", "url", "quality", "ext", "fileName", "filePath", "musicInfo", "position") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      insertDownload.run('dl_done', 1, 'done', '已完成', 100, 100, null, '128k', 'mp3', 'done.mp3', '/downloads/done.mp3', '{}', 0)
+      insertDownload.run('dl_pending', 0, 'waiting', '等待中', 0, 100, null, '128k', 'mp3', 'pending.mp3', '/downloads/pending.mp3', '{}', 1)
+    })()
+    db.close()
+    return file
+  }
+
+  it('迁移落地：love 迁 legacy、default/旧式条目/已完成下载清零、origin 列补上', () => {
+    const dir = newCaseDir()
+    const file = createV6Db(dir)
+    // 前提：这份库确实是 v6 结构（local_library_track 无 origin 列、版本号 6）
+    expect(readLocalLibraryColumns(file)).not.toContain('origin')
+    expect(readVersion(file)).toBe('6')
+
+    expect(init(dir)).toBe(true)
+    expect(verifyDB(getDB())).toBe(true)
+    expect(readVersion(file)).toBe(DB_VERSION)
+
+    // love 整档改挂 legacy（条目行 + 排序行），default 清残余
+    const listCounts = readListMusicCounts(file)
+    const orderCounts = readListOrderCounts(file)
+    expect(listCounts.love ?? 0).toBe(0)
+    expect(orderCounts.love ?? 0).toBe(0)
+    expect(listCounts.default ?? 0).toBe(0)
+    expect(listCounts[LEGACY_LOVE_LIST_ID]).toBe(2)
+    expect(orderCounts[LEGACY_LOVE_LIST_ID]).toBe(2)
+    // legacy 列表行排在末尾（position = max + 1）
+    expect(readUserListIds(file)).toEqual(['userlist_v6', LEGACY_LOVE_LIST_ID])
+    // 旧式条目（含坏 meta 那首）连排序行一并清除；托管条目留下
+    const localRows = readAllListMusics(file).filter(row => row.source == 'local')
+    expect(localRows.map(row => [row.id, row.listId])).toEqual([[HOSTED_HASH, 'userlist_v6']])
+    expect(orderCounts.temp).toBe(2)
+    expect(orderCounts.userlist_v6).toBe(3)
+    // 下载：已完成清、未完成留
+    expect(readDownloadRows(file).map(row => row.id)).toEqual(['dl_pending'])
+    // origin 列：旧行补 'import'（表结构由 verifyDB 逐字符校验，这里再钉列清单）
+    expect(readLocalLibraryColumns(file)).toContain('origin')
+    expect(readLocalLibraryOrigins(file)).toEqual([{ id: HOSTED_HASH, origin: 'import' }])
+  })
+
+  it('幂等：版本号被回写成 6 再跑一次不抛错、不重复建 legacy、旧行 origin 不被抹掉', () => {
+    const dir = newCaseDir()
+    const file = createV6Db(dir)
+    expect(init(dir)).toBe(true)
+    // 模拟「从旧备份还原了配置」把版本号带回 v6 的场景
+    inspect(file, db => {
+      db.prepare('UPDATE "main"."db_info" SET "field_value"=? WHERE "field_name"=?').run('6', 'version')
+    })
+    expect(init(dir)).toBe(true)
+    expect(verifyDB(getDB())).toBe(true)
+    expect(readUserListIds(file).filter(id => id == LEGACY_LOVE_LIST_ID)).toHaveLength(1)
+    expect(readListMusicCounts(file)[LEGACY_LOVE_LIST_ID]).toBe(2)
+    expect(readLocalLibraryOrigins(file)).toEqual([{ id: HOSTED_HASH, origin: 'import' }])
   })
 })

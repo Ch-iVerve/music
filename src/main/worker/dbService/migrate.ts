@@ -123,6 +123,87 @@ const migrateV5 = (db: Database.Database) => {
   if (!hasTable(db, 'local_library_track')) db.exec(tables.get('local_library_track')!)
 }
 
+/**
+ * v6 → v7：集合概念统一（ADR-0013 / spec `.scratch/functional-logic-consolidation/spec.md`）。
+ *
+ * 四件事 + 一列，口径「不留历史包袱、不考虑跨版本兼容」（用户 2026-10-12 拍板）：
+ * 1. **love 迁移**：有歌时把「我的收藏」迁成一个自建列表「我的收藏（历史）」
+ *    （id=`userlist_love_legacy`，position 排在末尾；名字是**迁移产物**，主进程无 i18n，硬编码中文），
+ *    条目行与排序行一起改挂；随后 love / default 的**残余行**一律清除（default 在 v3 → v4 清过一次，
+ *    这里兜幂等）。改挂用 `UPDATE OR IGNORE`：万一 legacy 列表里已存在同 id 行（撞 `UNIQUE(id,listId)`），
+ *    宁可让那一行留在 love 被随后的 DELETE 清掉，也不能让约束异常把整个 `init` 送进「备份 + 重建空库」。
+ * 2. **旧式条目清除**：`source='local'` 且 `meta.trackId` 缺失或不等于条目 id 的行（= 托管化之前的
+ *    绝对路径直读条目）连条目行与排序行一并删除，不做收编。判据用 JS 解析 meta 而不是 SQLite 的
+ *    `json_extract`：meta 若是坏 JSON，SQL 侧会抛错、让整个 `init` 失败（同上，等于把用户库送去重建）。
+ * 3. **已完成下载记录清除**：`download_list` 只留未完成/失败任务；文件留在用户原目录，不动作户磁盘。
+ * 4. **`local_library_track` 重建加 `origin` 列**（DEFAULT `'import'`，旧行补 `'import'`）：
+ *    必须重建而不是 `ALTER TABLE ADD COLUMN`——`ALTER` 追加到 `sqlite_master` 的文本对不上
+ *    `tables.ts` 的原文（列定义会缀在 `PRIMARY KEY` 之后），`verifyDB` 逐字符比对不过 →
+ *    `init` 返回 `null` → 用户库被改名备份后重建空库（同 `migrateV2` 注释里反复警告的坑）。
+ *    列已存在时也照样重建：把半迁移 / 手工改过的定义归一化回 `tables` 的原文（`migrateV2` 第 4 条）。
+ *
+ * 历史数据形态的 id（`'love'` / `'default'`）刻意写字面量，不引 `LIST_IDS`：那两个常量会随
+ * 集合概念统一的代码收口从常量表删除，而历史迁移分支必须永远能独立跑（它处理的是**过去的**形态）。
+ * 幂等：每步都是「条件不成立就跳 / 影响 0 行」，版本号被回写（如从旧备份还原 config）重跑也只清一次。
+ */
+const migrateV6 = (db: Database.Database) => {
+  db.transaction(() => {
+    // 1. love → 自建列表（先改挂，再清 love/default 残余）
+    const loveCount = (db.prepare('SELECT COUNT(*) AS "count" FROM "main"."my_list_music_info" WHERE "listId" = ?').get('love') as { count: number }).count
+    if (loveCount > 0) {
+      const maxPosition = (db.prepare('SELECT COALESCE(MAX("position"), -1) AS "max" FROM "main"."my_list"').get() as { max: number }).max
+      db.prepare('INSERT OR IGNORE INTO "main"."my_list" ("id", "name", "source", "sourceListId", "position", "locationUpdateTime") VALUES (?, ?, ?, ?, ?, ?)')
+        .run('userlist_love_legacy', '我的收藏（历史）', null, null, maxPosition + 1, 0)
+      db.prepare('UPDATE OR IGNORE "main"."my_list_music_info" SET "listId" = ? WHERE "listId" = ?').run('userlist_love_legacy', 'love')
+      db.prepare('UPDATE "main"."my_list_music_info_order" SET "listId" = ? WHERE "listId" = ?').run('userlist_love_legacy', 'love')
+    }
+    for (const listId of ['love', 'default']) {
+      db.prepare('DELETE FROM "main"."my_list" WHERE "id" = ?').run(listId)
+      db.prepare('DELETE FROM "main"."my_list_music_info" WHERE "listId" = ?').run(listId)
+      db.prepare('DELETE FROM "main"."my_list_music_info_order" WHERE "listId" = ?').run(listId)
+    }
+
+    // 2. 旧式条目清除（条目行 + 精确配对的排序行；同 id 的在线条目排序位不受影响）
+    const localRows = db.prepare('SELECT "id" AS "id", "listId" AS "listId", "meta" AS "meta" FROM "main"."my_list_music_info" WHERE "source" = \'local\'').all() as Array<{ id: string, listId: string, meta: string }>
+    const dropInfoStatement = db.prepare('DELETE FROM "main"."my_list_music_info" WHERE "id" = ? AND "listId" = ?')
+    const dropOrderStatement = db.prepare('DELETE FROM "main"."my_list_music_info_order" WHERE "musicInfoId" = ? AND "listId" = ?')
+    for (const row of localRows) {
+      let trackId: unknown
+      try {
+        trackId = (JSON.parse(row.meta) as { trackId?: unknown } | null)?.trackId
+      } catch {
+        trackId = undefined
+      }
+      if (trackId == null || String(trackId) !== row.id) {
+        dropInfoStatement.run(row.id, row.listId)
+        dropOrderStatement.run(row.id, row.listId)
+      }
+    }
+
+    // 3. 已完成下载记录清除（未完成 / 失败的任务保留可续）
+    if (hasTable(db, 'download_list')) {
+      db.prepare('DELETE FROM "main"."download_list" WHERE "isComplate" = 1').run()
+    }
+
+    // 4. local_library_track 重建加 origin 列（列已存在则归一化，原值保留）
+    if (hasTable(db, 'local_library_track')) {
+      const hasOrigin = (db.pragma('table_info("local_library_track")') as Array<{ name: string }>)
+        .some(column => column.name == 'origin')
+      const originExpr = hasOrigin ? '"origin"' : '\'import\''
+      db.exec(`
+        ALTER TABLE "local_library_track" RENAME TO "local_library_track_v6";
+        ${tables.get('local_library_track')!}
+        INSERT INTO "local_library_track" ("id", "name", "singer", "album", "interval", "ext", "size",
+          "year", "genre", "track_num", "disc_num", "has_pic", "has_lyric", "imported_at", "origin")
+          SELECT "id", "name", "singer", "album", "interval", "ext", "size",
+          "year", "genre", "track_num", "disc_num", "has_pic", "has_lyric", "imported_at", ${originExpr}
+          FROM "local_library_track_v6";
+        DROP TABLE "local_library_track_v6";
+      `)
+    }
+  })()
+}
+
 /** 表是否存在（迁移里要按库的实际形态分流，不能假设某张表一定在）。 */
 const hasTable = (db: Database.Database, name: string) =>
   db.prepare('SELECT name FROM "main".sqlite_master WHERE type=\'table\' AND name=?').get(name) != null
@@ -180,6 +261,9 @@ export default (db: Database.Database) => {
       // eslint-disable-next-line no-fallthrough -- 同上
     case '5':
       migrateV5(db)
+      // eslint-disable-next-line no-fallthrough -- 同上
+    case '6':
+      migrateV6(db)
       break
     default:
       // 未知版本（比 DB_VERSION 新，或字段被写坏）：不动库、只留一条日志。

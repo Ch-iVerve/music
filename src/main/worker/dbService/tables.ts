@@ -282,6 +282,9 @@ tables.set('follow_feed_item', `
  * 展示用的 `name`/`singer`/`album`/`interval` 与歌单条目（`my_list_music_info`）是**两份**：
  * 编辑曲目时由 `modules/local_library` 在同一事务里同步更新引用行（引用行的 `id` 就是这里的哈希、
  * `source='local'`），否则歌单里显示的是旧名字。
+ *
+ * `origin` 是**入库来源**（集合概念统一 spec / ADR-0013）：`'import'`（导入/收编）或 `'download'`
+ * （下载完成自动托管入库）。v7 迁移给旧行补 `'import'`；下载入库路径由渲染侧 worker 传入 `'download'`。
  */
 tables.set('local_library_track', `
   CREATE TABLE "local_library_track" (
@@ -299,6 +302,7 @@ tables.set('local_library_track', `
     "has_pic" INTEGER NOT NULL,
     "has_lyric" INTEGER NOT NULL,
     "imported_at" INTEGER NOT NULL,
+    "origin" TEXT NOT NULL DEFAULT 'import',
     PRIMARY KEY("id")
   );
 `)
@@ -323,5 +327,7 @@ export default tables
  *   两张都是新表、没有旧数据要搬，所以只是建表。
  * - 起始 `'5'`：补 `local_library_track` 表（本地媒体库票 01）；
  *   新表、没有旧数据要搬，所以只是建表。
+ * - 起始 `'6'`：集合概念统一（ADR-0013）：love 迁成自建列表后与 default 一起清残余、
+ *   旧式本地条目清除、已完成下载记录清除、`local_library_track` 重建加 `origin` 列。
  */
-export const DB_VERSION = '6'
+export const DB_VERSION = '7'
