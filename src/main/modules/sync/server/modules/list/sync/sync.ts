@@ -14,13 +14,12 @@ const wait = async(time = 1000) => await new Promise((resolve, reject) => setTim
 /**
  * 补上缺失的字段（对端可能是旧版，只发了 `userList` 之类）。
  *
- * **不要往这里加回 `defaultList`**（试听列表，票 08 已从数据层删除）：旧版对端/旧快照发来的
- * `defaultList` 会被原样留在对象上，但下游没有任何地方再读它——落库走
+ * **不要往这里加回 `defaultList` / `loveList`**（试听列表与本地收藏，均已退休）：旧版对端/旧快照
+ * 发来的这两个键会被原样留在对象上，但下游没有任何地方再读它——落库走
  * `dbService.listDataOverwrite`（按名字取字段），渲染侧同理。
  */
 const patchListData = (listData: Partial<LX.Sync.List.ListData>): LX.Sync.List.ListData => {
   return Object.assign({
-    loveList: [],
     userList: [],
   }, listData)
 }
@@ -142,10 +141,8 @@ const handleMergeList = (
 const mergeList = (socket: LX.Sync.Server.Socket, sourceListData: LX.Sync.List.ListData, targetListData: LX.Sync.List.ListData): LX.Sync.List.ListData => {
   const addMusicLocationType = getUserConfig(socket.userInfo.name)['list.addMusicLocationType']
   const newListData: LX.Sync.List.ListData = {
-    loveList: [],
     userList: [],
   }
-  newListData.loveList = handleMergeList(sourceListData.loveList, targetListData.loveList, addMusicLocationType)
 
   const userListDataObj = createUserListDataObj(sourceListData)
   newListData.userList = [...sourceListData.userList]
@@ -175,10 +172,8 @@ const mergeList = (socket: LX.Sync.Server.Socket, sourceListData: LX.Sync.List.L
 }
 const overwriteList = (sourceListData: LX.Sync.List.ListData, targetListData: LX.Sync.List.ListData): LX.Sync.List.ListData => {
   const newListData: LX.Sync.List.ListData = {
-    loveList: [],
     userList: [],
   }
-  newListData.loveList = sourceListData.loveList
 
   const userListDataObj = createUserListDataObj(sourceListData)
   newListData.userList = [...sourceListData.userList]
@@ -235,12 +230,12 @@ const handleMergeListData = async(socket: LX.Sync.Server.Socket): Promise<[LX.Sy
 const handleSyncList = async(socket: LX.Sync.Server.Socket) => {
   const [remoteListData, localListData] = await Promise.all([getRemoteListData(socket), getLocalListData()])
   console.log('handleSyncList', 'remoteListData, localListData')
-  console.log('localListData', localListData.loveList.length || localListData.userList.length)
-  console.log('remoteListData', remoteListData.loveList.length || remoteListData.userList.length)
+  console.log('localListData', localListData.userList.length)
+  console.log('remoteListData', remoteListData.userList.length)
   const userSpace = getUserSpace(socket.userInfo.name)
   const clientId = socket.keyInfo.clientId
-  if (localListData.loveList.length || localListData.userList.length) {
-    if (remoteListData.loveList.length || remoteListData.userList.length) {
+  if (localListData.userList.length) {
+    if (remoteListData.userList.length) {
       const [mergedList, requiredUpdateLocalListData, requiredUpdateRemoteListData] = await handleMergeListData(socket)
       console.log('handleMergeListData', 'mergedList', requiredUpdateLocalListData, requiredUpdateRemoteListData)
       let key
@@ -258,7 +253,7 @@ const handleSyncList = async(socket: LX.Sync.Server.Socket) => {
     }
   } else {
     let key: string
-    if (remoteListData.loveList.length || remoteListData.userList.length) {
+    if (remoteListData.userList.length) {
       key = await setLocalList(socket, remoteListData)
       await overwriteRemoteListData(socket, remoteListData, key, [clientId])
     }
@@ -330,10 +325,8 @@ const handleMergeListDataFromSnapshot = async(socket: LX.Sync.Server.Socket, sna
   const addMusicLocationType = getUserConfig(socket.userInfo.name)['list.addMusicLocationType']
   const [remoteListData, localListData] = await Promise.all([getRemoteListData(socket), getLocalListData()])
   const newListData: LX.Sync.List.ListData = {
-    loveList: [],
     userList: [],
   }
-  newListData.loveList = mergeListDataFromSnapshot(localListData.loveList, remoteListData.loveList, snapshot.loveList, addMusicLocationType)
   const localUserListData = createUserListDataObj(localListData)
   const remoteUserListData = createUserListDataObj(remoteListData)
   const snapshotUserListData = createUserListDataObj(snapshot)

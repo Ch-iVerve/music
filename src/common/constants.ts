@@ -26,8 +26,6 @@ export const APP_EVENT_NAMES = {
 } as const
 
 export const LIST_IDS = {
-  DEFAULT: 'default',
-  LOVE: 'love',
   TEMP: 'temp',
   DOWNLOAD: 'download',
   PLAY_LATER: null,

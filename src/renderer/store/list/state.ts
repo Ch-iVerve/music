@@ -2,7 +2,6 @@ import { reactive } from '@common/utils/vueTools'
 
 export {
   allMusicList,
-  loveList,
   tempList,
   userLists,
 } from '@renderer/store/list/listManage'

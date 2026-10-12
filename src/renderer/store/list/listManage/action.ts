@@ -1,7 +1,6 @@
 import { markRaw, markRawList, toRaw } from '@common/utils/vueTools'
 import {
   allMusicList,
-  loveList,
   tempList,
   userLists,
 } from './state'
@@ -71,8 +70,6 @@ const updateList = ({
 }: LX.List.UserListInfo & { meta?: { id?: string } }) => {
   let targetList
   switch (id) {
-    case loveList.id:
-      break
     case tempList.id:
       tempList.meta = meta ?? {}
       break
@@ -107,10 +104,10 @@ const overwriteUserList = (lists: LX.List.UserListInfo[]) => {
 /**
  * 覆盖全部列表数据（旧数据迁移 / 备份导入 / 同步三处共用）。
  *
- * 入参**可能带旧版的 `defaultList`（试听列表）键**：本函数按名字解构，多出来的键天然被忽略，
- * 这正是「旧同步数据拉取、旧备份导入仍能跑通」的落点（票 08 契约 2）——别改成按位置取参。
+ * 入参**可能带旧版的 `defaultList` / `loveList` 键**（试听列表与本地收藏，均已退休）：本函数按名字
+ * 解构，多出来的键天然被忽略，这正是「旧同步数据拉取、旧备份导入仍能跑通」的落点——别改成按位置取参。
  */
-export const listDataOverwrite = ({ loveList, userList, tempList }: MakeOptional<LX.List.ListDataFull, 'tempList'>): string[] => {
+export const listDataOverwrite = ({ userList, tempList }: MakeOptional<LX.List.ListDataFull, 'tempList'>): string[] => {
   const updatedListIds: string[] = []
   const newUserIds: string[] = []
   const newUserListInfos = userList.map(({ list, ...listInfo }) => {
@@ -128,14 +125,11 @@ export const listDataOverwrite = ({ loveList, userList, tempList }: MakeOptional
   }
   overwriteUserList(newUserListInfos)
 
-  overwriteMusicList(LIST_IDS.LOVE, loveList)
-  updatedListIds.push(LIST_IDS.LOVE)
-
   if (tempList && allMusicList.has(LIST_IDS.TEMP)) {
     overwriteMusicList(LIST_IDS.TEMP, tempList)
     updatedListIds.push(LIST_IDS.TEMP)
   }
-  const newIds = [LIST_IDS.LOVE, ...userList.map(l => l.id)]
+  const newIds = userList.map(l => l.id)
   if (tempList) newIds.push(LIST_IDS.TEMP)
   void overwriteListPosition(newIds)
   void overwriteListUpdateInfo(newIds)
@@ -206,7 +200,7 @@ export const userListsUpdatePosition = (position: number, ids: string[]) => {
 export const listMusicOverwrite = (listId: string, musicInfos: LX.Music.MusicInfo[]): string[] => {
   const isExist = allMusicList.has(listId)
   overwriteMusicList(listId, musicInfos)
-  return isExist || listId == loveList.id ? [listId] : []
+  return isExist ? [listId] : []
 }
 
 export const listMusicClear = (ids: string[]): string[] => {
@@ -222,7 +216,7 @@ export const listMusicClear = (ids: string[]): string[] => {
 
 export const listMusicAdd = (id: string, musicInfos: LX.Music.MusicInfo[], addMusicLocationType: LX.AddMusicLocationType): string[] => {
   const targetList = allMusicList.get(id)
-  if (!targetList) return id == loveList.id ? [id] : []
+  if (!targetList) return []
 
   const listSet = new Set<string>()
   for (const item of targetList) listSet.add(item.id)
@@ -254,7 +248,7 @@ export const listMusicMove = (fromId: string, toId: string, musicInfos: LX.Music
 
 export const listMusicRemove = (listId: string, ids: string[]): string[] => {
   let targetList = allMusicList.get(listId)
-  if (!targetList) return listId == loveList.id ? [listId] : []
+  if (!targetList) return []
 
   const idsSet = new Set<string>(ids)
   const newList = targetList.filter(mInfo => !idsSet.has(mInfo.id))
@@ -287,7 +281,7 @@ export const listMusicUpdateInfo = (musicInfos: LX.List.ListActionMusicUpdate): 
 
 export const listMusicUpdatePosition = async(listId: string, position: number, ids: string[]): Promise<string[]> => {
   let targetList = allMusicList.get(listId)
-  if (!targetList) return listId == loveList.id ? [listId] : []
+  if (!targetList) return []
 
 
   // const infos = Array(ids.length)

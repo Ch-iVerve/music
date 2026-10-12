@@ -133,11 +133,10 @@ export const clearListMusics = async(ids: LX.List.ListActionMusicClear) => {
  * 覆盖全部列表数据
  * @param data
  *
- * 入参可能来自旧版同步载荷（多带一个 `defaultList` 键，票 08 前的试听列表）：只在 `toRaw` 里
+ * 入参可能来自旧版同步载荷（多带 `defaultList` / `loveList` 键，均已退休）：只在 `toRaw` 里
  * 归一化我们还在用的字段，多出来的键原样交给 IPC，由主进程/worker 按名字取用并忽略。
  */
 export const overwriteListFull = async(data: LX.List.ListActionDataOverwrite) => {
-  data.loveList = toRaw(data.loveList)
   if (data.tempList) {
     data.tempList = toRaw(data.tempList)
   }

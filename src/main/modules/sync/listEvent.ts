@@ -14,7 +14,6 @@ export const buildUserListInfoFull = ({ id, name, source, sourceListId, list, lo
 
 export const getLocalListData = async(): Promise<LX.Sync.List.ListData> => {
   const lists: LX.Sync.List.ListData = {
-    loveList: await global.lx.worker.dbService.getListMusics(LIST_IDS.LOVE),
     userList: [],
   }
 
@@ -30,7 +29,7 @@ export const getLocalListData = async(): Promise<LX.Sync.List.ListData> => {
 /**
  * 落一份列表数据（同步：远端推过来的 / 从远端拉到的都走这里）。
  *
- * 入参**可能带旧版的 `defaultList` 键**（试听列表，票 08 前是一等公民）：不用在这里剥，
+ * 入参**可能带旧版的 `defaultList` / `loveList` 键**（试听列表与本地收藏，均已退休）：不用在这里剥，
  * `dbService.listDataOverwrite` 按名字取字段、多出来的键自然忽略（那里有详细注释）；
  * 渲染侧的 `list_data_overwrite` 同理（`store/list/listManage/action.ts`）。
  */

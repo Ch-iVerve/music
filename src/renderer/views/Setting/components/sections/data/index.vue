@@ -94,9 +94,7 @@ export default {
         confirmButtonText: t('setting__other_resource_cache_confirm'),
       })) return
       void overwriteListFull({
-        // 试听列表已从数据层删除（票 08）：它没有需要清空的数据行，覆盖写也会顺手把残留的
-        // `default` 行清掉（`overwriteListData` 是整表清空重建）
-        loveList: [],
+        // 保留列表（`default`/`love`）已退休：没有它们的数据段，覆盖写只清自建列表与队列
         userList: [],
         tempList: [],
       })

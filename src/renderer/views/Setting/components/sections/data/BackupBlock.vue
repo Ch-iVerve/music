@@ -31,7 +31,7 @@ import { dialog } from '@renderer/plugins/Dialog'
 import useImportTip from '@renderer/utils/compositions/useImportTip'
 import { useI18n } from '@renderer/plugins/i18n'
 import { getListMusics, overwriteListFull } from '@renderer/store/list/action'
-import { loveList, userLists } from '@renderer/store/list/state'
+import { userLists } from '@renderer/store/list/state'
 import { appSetting, updateSetting } from '@renderer/store/setting'
 import migrateSetting from '@common/utils/migrateSetting'
 import { mergeImportedLists } from './listDataImport'
@@ -55,15 +55,13 @@ export default {
     const showImportTip = useImportTip()
 
     /**
-     * 本地已有列表：**第 0 项是「我的收藏」**，其后都是自建列表。
+     * 本地已有列表：**全部是自建列表**（保留列表 `default`/`love` 已退休，没有第 0 项的特殊含义）。
      *
-     * 票 08 起不再有试听列表：它既不在这份数组里，导出时也不会写进备份文件——于是
-     * 「第 0 项 = 试听列表」这个位置约定整体前移，导入侧改成按 `id` 认列表并**跳过**
-     * 旧备份里的试听列表（见 `listDataImport.ts`）。
+     * 导出时这两条都不写进备份文件；导入侧按 `id` 认列表并**跳过**旧备份里的遗留段
+     * （见 `listDataImport.ts` 的 `RETIRED_LIST_IDS`）。
      */
     const getAllLists = async() => {
       const lists = []
-      lists.push(await getListMusics(loveList.id).then(musics => ({ ...loveList, list: toRaw(musics) })))
 
       for await (const list of userLists) {
         lists.push(await getListMusics(list.id).then(musics => ({ ...toRaw(list), list: toRaw(musics) })))
@@ -73,20 +71,20 @@ export default {
     }
 
     const importOldListData = async(lists) => {
-      const { loveList: loveListData, userList } = mergeImportedLists(
+      const { userList } = mergeImportedLists(
         await getAllLists(),
         lists,
         (musicList) => filterMusicList(musicList.map(m => toNewMusicInfo(m))),
       )
-      await overwriteListFull({ loveList: loveListData, userList })
+      await overwriteListFull({ userList })
     }
     const importNewListData = async(lists) => {
-      const { loveList: loveListData, userList } = mergeImportedLists(
+      const { userList } = mergeImportedLists(
         await getAllLists(),
         lists,
         (musicList) => filterMusicList(musicList).map(m => fixNewMusicInfoQuality(m)),
       )
-      await overwriteListFull({ loveList: loveListData, userList })
+      await overwriteListFull({ userList })
     }
     const importOldSettingData = (setting) => {
       console.log(setting)

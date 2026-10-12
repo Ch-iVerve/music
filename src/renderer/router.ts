@@ -131,15 +131,14 @@ const router = createRouter({
     },
     // 旧「我的列表」页退场（工单 07）：歌曲类列表归「我的收藏」，自建列表归「我的歌单」。
     // 播放栏点进度区、旧书签都还在用 `/list?id=…`，所以按 id 分派而不是留死链。
-    // `id=default`（试听列表）界面已退场（ADR 0006）：与无 id 一样落到「我收藏的歌曲」，
-    // 且不再带 `list` 参数——收藏页只剩一个列表，`list` 已无意义。
-    // `id=love`（本地收藏）同样如此：本地收藏的界面入口已取消（2026-09-24，收藏只写 QQ
-    // 的我喜欢），深链就落到收藏页那一份云端「我喜欢」上——不做成死链，也不另指别处。
+    // `id=default`（试听列表）与 `id=love`（本地收藏）两条保留列表已退休（ADR 0006 / 集合概念统一）：
+    // 深链与无 id 一样落到收藏页那一份云端「我喜欢」上——不做成死链，也不另指别处。
+    // 用字面量不引 `LIST_IDS`：那两个键已随清理从常量表删除。
     {
       path: '/list',
       redirect: to => {
         const id = to.query.id as string | undefined
-        if (id === LIST_IDS.DEFAULT || id === LIST_IDS.LOVE || id == null) {
+        if (id == null || id === 'default' || id === 'love') {
           return { path: '/favorites', query: { ...to.query, id: undefined, tab: 'songs' } }
         }
         if (id === LIST_IDS.DOWNLOAD) return { path: '/download', query: { ...to.query, id: undefined } }

@@ -53,8 +53,6 @@ import { getListMusics, removeListMusics } from '@renderer/store/list/action'
 import { isFullscreen, getSourceName } from '@renderer/store'
 import { appSetting } from '@renderer/store/setting'
 import { getFontSizeWithScreen } from '@renderer/utils'
-import { LIST_IDS } from '@common/constants'
-import { useI18n } from '@root/lang'
 
 export default {
   props: {
@@ -69,7 +67,6 @@ export default {
   },
   emits: ['update:visible'],
   setup(props) {
-    const t = useI18n()
     const duplicateList = ref([])
     const listItemHeight = computed(() => {
       return Math.ceil((isFullscreen.value ? getFontSizeWithScreen() : appSetting['common.fontSize']) * 3.2)
@@ -99,14 +96,8 @@ export default {
       }
     })
 
-    const listName = computed(() => {
-      switch (props.listInfo.id) {
-        case LIST_IDS.LOVE:
-          return t(props.listInfo.name)
-
-        default: return props.listInfo.name
-      }
-    })
+    // 保留列表（love）已退休：弹窗只对自建列表打开，名字直接就是显示名
+    const listName = computed(() => props.listInfo.name)
 
     return {
       listItemHeight,

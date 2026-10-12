@@ -50,7 +50,7 @@ export default {
     const LIBRARY_NODE_ID = LIST_IDS.LOCAL_LIBRARY
     const listId = computed(() => {
       const id = route.query.id as string | undefined
-      if (id && (userLists.some(l => l.id === id) || id === LIST_IDS.LOVE || id === LIST_IDS.LOCAL_LIBRARY)) return id
+      if (id && (userLists.some(l => l.id === id) || id === LIST_IDS.LOCAL_LIBRARY)) return id
       // 没选（或选的是已删除的列表）：落到「全部本地音乐」节点（票 03 起它是本 tab 的默认视图，
       // 永远存在；此前是落到第一个自建列表）
       return LIBRARY_NODE_ID

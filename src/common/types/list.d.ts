@@ -25,13 +25,6 @@ declare namespace LX {
       // list: LX.Music.MusicInfo[]
     }
 
-    interface MyLoveListInfo {
-      id: 'love'
-      name: 'list__name_love'
-      // name: '我的收藏'
-      // list: LX.Music.MusicInfo[]
-    }
-
     interface MyTempListInfo {
       id: 'temp'
       name: '临时列表'
@@ -42,31 +35,12 @@ declare namespace LX {
       }
     }
 
-    type MyListInfo = MyLoveListInfo | UserListInfo
-
-    interface MyAllList {
-      loveList: MyLoveListInfo
-      userList: UserListInfo[]
-      tempList: MyTempListInfo
-    }
-
-
     type SearchHistoryList = string[]
     type ListPositionInfo = Record<string, number>
     type ListUpdateInfo = Record<string, {
       updateTime: number
       isAutoUpdate: boolean
     }>
-
-    type ListSaveType = 'myList' | 'downloadList'
-    type ListSaveInfo = {
-      type: 'myList'
-      data: Partial<MyAllList>
-    } | {
-      type: 'downloadList'
-      data: LX.Download.ListItem[]
-    }
-
 
     type ListActionDataOverwrite = MakeOptional<LX.List.ListDataFull, 'tempList'>
     interface ListActionAdd {
@@ -130,9 +104,6 @@ declare namespace LX {
     interface MyDefaultListInfoFull extends MyDefaultListInfo {
       list: LX.Music.MusicInfo[]
     }
-    interface MyLoveListInfoFull extends MyLoveListInfo {
-      list: LX.Music.MusicInfo[]
-    }
     interface UserListInfoFull extends UserListInfo {
       list: LX.Music.MusicInfo[]
     }
@@ -141,7 +112,6 @@ declare namespace LX {
     }
 
     interface ListDataFull {
-      loveList: LX.Music.MusicInfo[]
       userList: UserListInfoFull[]
       tempList: LX.Music.MusicInfo[]
     }

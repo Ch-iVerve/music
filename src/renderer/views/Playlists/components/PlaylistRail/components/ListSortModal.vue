@@ -68,8 +68,6 @@
 import { ref, computed } from '@common/utils/vueTools'
 // import { dialog } from '@renderer/plugins/Dialog'
 import { getListMusics, updateListMusicsPosition } from '@renderer/store/list/action'
-import { useI18n } from '@root/lang'
-import { LIST_IDS } from '@common/constants'
 
 
 export default {
@@ -85,7 +83,6 @@ export default {
   },
   emits: ['update:visible'],
   setup(props, { emit }) {
-    const t = useI18n()
     const sortField = ref('')
     const sortType = ref('')
     const closeModal = () => {
@@ -114,14 +111,8 @@ export default {
       void updateListMusicsPosition({ listId: props.listInfo.id, position: 0, ids: list.map(m => m.id) })
     }
 
-    const listName = computed(() => {
-      switch (props.listInfo.id) {
-        case LIST_IDS.LOVE:
-          return t(props.listInfo.name)
-        default:
-          return props.listInfo.name
-      }
-    })
+    // 保留列表（love）已退休：弹窗只对自建列表打开，名字直接就是显示名
+    const listName = computed(() => props.listInfo.name)
 
     const disabledSortFislds = computed(() => {
       return sortType.value == 'random'

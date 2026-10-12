@@ -1,5 +1,4 @@
 import type Database from 'better-sqlite3'
-import { LIST_IDS } from '@common/constants'
 import tables, { DB_VERSION } from './tables'
 import { deleteUserLists } from './modules/list/dbHelper'
 
@@ -75,7 +74,7 @@ const migrateV2 = (db: Database.Database) => {
 }
 
 /**
- * v3 → v4：删掉「试听列表」（`LIST_IDS.DEFAULT`）在库里的全部数据行（票 08 契约 1：**真删旧行**）。
+ * v3 → v4：删掉「试听列表」（`default`）在库里的全部数据行（票 08 契约 1：**真删旧行**）。
  *
  * 四个刻意的做法：
  * 1. **走 `dbHelper` 的列表删除路径**（`deleteUserLists`，即 `list_remove` 事件那条路径）：它把
@@ -90,7 +89,7 @@ const migrateV2 = (db: Database.Database) => {
  *    重跑也只是再清一次。
  */
 const migrateV3 = (db: Database.Database) => {
-  deleteUserLists([LIST_IDS.DEFAULT])
+  deleteUserLists(['default'])
 }
 
 /**

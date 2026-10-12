@@ -361,22 +361,38 @@ export const musicsPositionUpdate = (listId: string, position: number, ids: stri
 }
 
 /**
+ * 丢弃旧式本地条目（`source='local'` 且 `meta.trackId` 缺失 / 与 id 不符的绝对路径直读形态）。
+ *
+ * 这类条目已随集合概念统一退休（库里由 v7 迁移清除）：落库入口（同步载荷、旧备份导入）再兜一道，
+ * 保证库里永远只出现托管条目（`trackId` = 哈希 = id）。口径是**丢弃**不是报错——旧端 / 旧备份
+ * 送进来就当没看见。
+ */
+const dropLegacyLocalEntries = (musics: LX.Music.MusicInfo[]): LX.Music.MusicInfo[] =>
+  musics.filter(music => {
+    if (music.source != 'local') return true
+    // `source != 'local'` 已把 `music` 收窄成 MusicInfoLocal（判别式联合），meta 上直接有 trackId
+    const trackId = music.meta.trackId
+    return trackId != null && String(trackId) == music.id
+  })
+
+/**
  * 覆盖所有列表数据
  * @param myListData 完整列表数据
  *
- * 注意入参形状：**旧版同步 / 旧备份的载荷里多一个 `defaultList` 键**（试听列表，票 08 前是一等公民）。
- * 这里只按名字取 `loveList` / `userList` / `tempList`，多出来的键自然被忽略——这正是「旧同步数据
+ * 注意入参形状：**旧版同步 / 旧备份的载荷里多 `defaultList` / `loveList` 键**（试听列表与本地收藏，
+ * 均已退休）。这里只按名字取 `userList` / `tempList`，多出来的键自然被忽略——这正是「旧同步数据
  * 拉取仍能跑通」的落点，别改成按位置解构或对多出来的键报错。
  */
 export const listDataOverwrite = (myListData: MakeOptional<LX.List.ListDataFull, 'tempList'>) => {
   const dbLists: LX.DBService.UserListInfo[] = []
   const listData: LX.List.ListDataFull = {
     ...myListData,
-    tempList: myListData.tempList ?? getListMusics(LIST_IDS.TEMP),
+    // 旧式本地条目一律丢弃（见 dropLegacyLocalEntries）：下游（落库 + 内存缓存）都用过滤后的数据
+    userList: myListData.userList.map(list => ({ ...list, list: dropLegacyLocalEntries(list.list) })),
+    tempList: dropLegacyLocalEntries(myListData.tempList ?? getListMusics(LIST_IDS.TEMP)),
   }
 
   const dbMusicInfos: LX.DBService.MusicInfo[] = [
-    ...toDBMusicInfo(listData.loveList, LIST_IDS.LOVE),
     ...toDBMusicInfo(listData.tempList, LIST_IDS.TEMP),
   ]
   listData.userList.forEach(({ list, ...listInfo }, index) => {
@@ -391,7 +407,6 @@ export const listDataOverwrite = (myListData: MakeOptional<LX.List.ListDataFull,
   rawPoss.clear()
   for (const list of userLists) rawPoss.set(list.id, list.position)
   musicLists.clear()
-  musicLists.set(LIST_IDS.LOVE, listData.loveList)
   musicLists.set(LIST_IDS.TEMP, listData.tempList)
   for (const list of listData.userList) musicLists.set(list.id, list.list)
 }

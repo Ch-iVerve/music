@@ -32,20 +32,18 @@ interface OldUserListInfo {
 /**
  * 迁移 v2.0.0 之前的 list data
  *
- * 试听列表（`defaultList`）的歌曲**不再导入**（票 08：这条列表已从库里、界面上删除，用户明确接受
- * 早版本点过的歌找不回来）——`playList.json` / `config.json` 里的 `defaultList` 读进来直接丢掉，
- * 不写进「我的收藏」，也不在库里留行。
+ * 只导入「临时列表」与自建列表：试听列表（`defaultList`）与本地收藏（`loveList`）都已退休
+ * （票 08 / 集合概念统一），`playList.json` / `config.json` 里的这两段读进来直接丢掉，不在库里留行。
+ * `config.json` 的列表段历史形状里只有这两条，所以那一支整个不再读。
  * @returns
  */
 export const migrateDBData = async() => {
-  let playList = await parseDataFile<{ defaultList?: { list: any[] }, loveList?: { list: any[] }, tempList?: { list: any[] }, userList?: OldUserListInfo[] }>('playList.json')
+  let playList = await parseDataFile<{ tempList?: { list: any[] }, userList?: OldUserListInfo[] }>('playList.json')
   let listDataAll: MakeOptional<LX.List.ListDataFull, 'tempList'> = {
-    loveList: [],
     userList: [],
   }
   let isRequiredSave = false
   if (playList) {
-    if (playList.loveList) listDataAll.loveList = filterMusicList(playList.loveList.list.map(m => toNewMusicInfo(m)))
     if (playList.tempList) listDataAll.tempList = filterMusicList(playList.tempList.list.map(m => toNewMusicInfo(m)))
     if (playList.userList) {
       listDataAll.userList = playList.userList.map(l => {
@@ -56,14 +54,8 @@ export const migrateDBData = async() => {
         }
       })
     }
-    isRequiredSave = true
-  } else {
-    const config = await parseDataFile<{ list?: { defaultList?: any[], loveList?: any[] } }>('config.json')
-    if (config?.list) {
-      const list = config.list
-      if (list.loveList) listDataAll.loveList = filterMusicList(list.loveList.map(m => toNewMusicInfo(m)))
-      isRequiredSave = true
-    }
+    // 只有 temp/userList 有内容才写库：若 playList.json 只剩已退休的列表段，写一份空数据会把现有自建列表清空
+    isRequiredSave = playList.tempList != null || playList.userList != null
   }
   if (isRequiredSave) await global.lx.worker.dbService.listDataOverwrite(listDataAll)
 

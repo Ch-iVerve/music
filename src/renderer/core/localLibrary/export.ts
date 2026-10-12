@@ -34,7 +34,7 @@ const intervalToSeconds = (interval: string | null): number => {
 }
 
 export const exportListAsPackage = async(
-  listInfo: LX.List.MyListInfo,
+  listInfo: LX.List.UserListInfo,
   musics: LX.Music.MusicInfo[],
   targetDir: string,
   options: ExportOptions,
