@@ -38,7 +38,11 @@
 
     <!-- 底部常驻动作条（票 13）：新建歌单外显；普通/带封面两种建法走小菜单 -->
     <div :class="$style.listFooter">
-      <button :class="$style.newListBtn" @click="isShowCloudNewMenu = !isShowCloudNewMenu">
+      <!-- `.stop` 与坐标两件都不能省（2026-10-12 真机复现「点了没反应」）：
+           ① click 打开的菜单不 stop，同一次点击冒泡到 document 的收起监听会把它立刻关掉
+              （useMenuLocation.js 里工单 23 的坑，实测菜单 opacity 开了就掉 0）；
+           ② xy 从没被赋值过，菜单即使开着也落在 (0,0)（teleport 到 #root 后被裁在左上角） -->
+      <button :class="$style.newListBtn" @click.stop="handleCloudNewMenuToggle">
         <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" :class="$style.newListIcon" viewBox="0 0 24 24" space="preserve">
           <use xlink:href="#icon-list-add" />
         </svg>
@@ -100,6 +104,13 @@ export default {
       if (action == 'plain') cloud.isShowNewCloudList.value = true
       else if (action == 'cover') dom_coverPicker.value?.click()
     }
+    // 打开「普通/带封面」小菜单：取点击坐标给 base-menu（xy 不设就落 0,0），
+    // 模板上必须配 @click.stop（理由见模板内注释）
+    const handleCloudNewMenuToggle = (event: MouseEvent) => {
+      cloudNewMenuLocation.x = event.pageX
+      cloudNewMenuLocation.y = event.pageY
+      isShowCloudNewMenu.value = !isShowCloudNewMenu.value
+    }
     return {
       ...cloud,
       dom_coverPicker,
@@ -107,6 +118,7 @@ export default {
       cloudNewMenuLocation,
       cloudNewMenus,
       handleCloudNewMenuClick,
+      handleCloudNewMenuToggle,
     }
   },
 }

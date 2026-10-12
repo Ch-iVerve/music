@@ -61,6 +61,9 @@ export default {
   height: 100%;
   display: flex;
   flex-flow: row nowrap;
+  // 左栏（21%）与右栏之间的呼吸位：此前为 0，右栏标题贴着左栏滚动条，两栏黏成一块
+  // （真机截图红框处，2026-10-12；与 LocalListsPanel 同一口径）
+  gap: 16px;
 }
 .pane {
   flex: auto;

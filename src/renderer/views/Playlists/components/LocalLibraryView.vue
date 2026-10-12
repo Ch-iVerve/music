@@ -8,7 +8,8 @@
         :placeholder="$t('playlists__library_search')"
       />
       <!-- 分组胶囊与搜索同行（票 13）：胶囊可横向滚动，右侧动作常驻 -->
-      <div :class="$style.capsules">
+      <!-- 溢出时右缘渐隐（票 02 方案 a）：横滚容器拦腰切断胶囊时切口感生硬，渐隐示意「还有可滚」 -->
+      <div ref="dom_capsules" :class="[$style.capsules, { [$style.capsulesFade]: capsulesOverflow }]">
         <button
           v-for="capsule in capsules"
           :key="`${capsule.dim}`"
@@ -153,6 +154,7 @@ export default {
     const tracks = ref([])
     const mediaDir = ref('')
     const dom_list = ref(null)
+    const dom_capsules = ref(null)
     const query = ref('')
     const dim = ref(null)
     const collapsedKeys = ref(new Set())
@@ -191,6 +193,21 @@ export default {
     const handleDimChange = (value) => {
       dim.value = value
     }
+
+    // 胶囊行溢出检测（票 02 方案 a）：溢出时给容器加右缘渐隐（样式在 .capsulesFade），
+    // 让被横滚切断的胶囊读作「还有可滚」而不是破碎。窗口尺寸/语言都会改胶囊总宽，挂 resize 重测
+    const capsulesOverflow = ref(false)
+    const checkCapsulesOverflow = () => {
+      const el = dom_capsules.value
+      capsulesOverflow.value = !!el && el.scrollWidth > el.clientWidth + 1
+    }
+    onMounted(() => {
+      window.addEventListener('resize', checkCapsulesOverflow)
+      void nextTick(checkCapsulesOverflow)
+    })
+    onBeforeUnmount(() => {
+      window.removeEventListener('resize', checkCapsulesOverflow)
+    })
 
     const rows = computed(() => groupLibraryTracks(
       viewTracks.value,
@@ -423,9 +440,11 @@ export default {
       tracks,
       viewTracks,
       dom_list,
+      dom_capsules,
       query,
       dim,
       capsules,
+      capsulesOverflow,
       rows,
       importing,
       isMediaPathMissing,
@@ -528,6 +547,13 @@ export default {
   &::-webkit-scrollbar {
     display: none;
   }
+}
+
+// 溢出时的右缘渐隐（票 02 方案 a）：横滚容器把胶囊拦腰切断时切口生硬，
+// 渐隐示意「还有可滚」。只在溢出时挂（capsulesOverflow），全可见时不淡化边缘
+.capsulesFade {
+  mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent 100%);
 }
 
 .capsule {
