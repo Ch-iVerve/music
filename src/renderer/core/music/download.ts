@@ -6,14 +6,13 @@ import {
   getLyricInfo as getOnlineLyricInfo,
 } from './online'
 import { buildLyricInfo, getCachedLyricInfo } from './utils'
-import { buildSavePath } from '@renderer/store/download/utils'
 
 export const getMusicUrl = async({ musicInfo, isRefresh }: {
   musicInfo: LX.Download.ListItem
   isRefresh: boolean
 }): Promise<string> => {
   if (!isRefresh) {
-    const path = await getDownloadFilePath(musicInfo, buildSavePath(musicInfo))
+    const path = await getDownloadFilePath(musicInfo)
     if (path) return path
   }
 
@@ -26,7 +25,7 @@ export const getPicUrl = async({ musicInfo, isRefresh, listId }: {
   listId?: string | null
 }): Promise<string> => {
   if (!isRefresh) {
-    const path = await getDownloadFilePath(musicInfo, buildSavePath(musicInfo))
+    const path = await getDownloadFilePath(musicInfo)
     if (path) {
       const pic = await window.lx.worker.main.getMusicFilePic(path)
       if (pic) return pic
@@ -57,7 +56,7 @@ export const getLyricInfo = async({ musicInfo, isRefresh }: {
     isRefresh,
   }).catch(async() => {
     // 尝试读取文件内歌词
-    const path = await getDownloadFilePath(musicInfo, buildSavePath(musicInfo))
+    const path = await getDownloadFilePath(musicInfo)
     if (path) {
       const rawlrcInfo = await window.lx.worker.main.getMusicFileLyric(path)
       if (rawlrcInfo) return buildLyricInfo(rawlrcInfo)

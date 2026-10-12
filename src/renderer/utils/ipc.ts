@@ -875,8 +875,8 @@ export const markFollowFeedBackfilled = async() => {
 export const localLibraryGetAll = async(): Promise<LX.LocalLibrary.Track[]> => {
   return rendererInvoke<LX.LocalLibrary.Track[]>(LOCAL_LIBRARY_EVENT_NAME.get_all)
 }
-export const localLibraryAdd = async(tracks: LX.LocalLibrary.TrackInput[]) => {
-  return rendererInvoke<LX.LocalLibrary.TrackInput[]>(LOCAL_LIBRARY_EVENT_NAME.add, tracks)
+export const localLibraryAdd = async(tracks: LX.LocalLibrary.TrackInput[], origin?: LX.LocalLibrary.Origin) => {
+  return rendererInvoke(LOCAL_LIBRARY_EVENT_NAME.add, { tracks, origin })
 }
 export const localLibraryUpdate = async(track: LX.LocalLibrary.Track): Promise<boolean> => {
   return rendererInvoke<LX.LocalLibrary.Track, boolean>(LOCAL_LIBRARY_EVENT_NAME.update, track)

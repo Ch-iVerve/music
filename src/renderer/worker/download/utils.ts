@@ -1,36 +1,4 @@
 import { DOWNLOAD_STATUS, QUALITYS } from '@common/constants'
-import { filterFileName } from '@common/utils/common'
-import { buildLyrics } from './lrcTool'
-import fs from 'fs'
-import { clipFileNameLength, clipNameLength, formatMusicName } from '@common/utils/tools'
-import defaultSetting from '@common/defaultSetting'
-
-/**
- * 保存歌词文件
- */
-export const saveLrc = async(lrcData: LX.Music.LyricInfo, info: {
-  filePath: string
-  format: LX.LyricFormat
-  downloadLxlrc: boolean
-  downloadTlrc: boolean
-  downloadRlrc: boolean
-}) => {
-  const iconv = (await import('iconv-lite')).default
-  const lrc = buildLyrics(lrcData, info.downloadLxlrc, info.downloadTlrc, info.downloadRlrc)
-  switch (info.format) {
-    case 'gbk':
-      fs.writeFile(info.filePath, iconv.encode(lrc, 'gbk', { addBOM: true }), err => {
-        if (err) console.log(err)
-      })
-      break
-    case 'utf8':
-    default:
-      fs.writeFile(info.filePath, iconv.encode(lrc, 'utf8', { addBOM: true }), err => {
-        if (err) console.log(err)
-      })
-      break
-  }
-}
 
 export const getExt = (type: string): LX.Download.FileExt => {
   switch (type) {
@@ -74,33 +42,16 @@ export const getMusicType = (musicInfo: LX.Music.MusicInfoOnline, type: LX.Quali
   return degradeWhenUnsupported ? '128k' : null
 }
 
-/**
- * 按模板渲染下载文件名（含扩展名）。`filterFileName` 与 `clipFileNameLength` 的原有次序与作用都要保住：
- * 先截断（150 字符）再补扩展名，避免把扩展名截掉；非法字符在拼扩展名之前去掉。
- *
- * 模板串是用户可编辑的自由文本（`download.fileNameTemplate`），两条兜底就是它的边界：
- * - 空模板、或渲染完只剩非法字符（被 `filterFileName` 吃空）时回退**默认模板**——否则会落盘成
- *   `.mp3` 这种隐藏文件。手改配置文件才可能走到这里（设置页不落空值）
- * - 判空只看 `trim()` 后的结果，不复写渲染结果：模板两端的空格是用户自己写的，照旧保留
- */
-export const createDownloadFileName = (template: string, musicInfo: LX.Music.MusicInfoOnline, ext: LX.Download.FileExt) => {
-  const render = (tpl: string) => filterFileName(clipFileNameLength(formatMusicName(tpl, musicInfo.name, clipNameLength(musicInfo.singer))))
-  let name = render(template)
-  if (!name.trim()) name = render(defaultSetting['download.fileNameTemplate'])
-  return `${name}.${ext}`
-}
-
 // const checkExistList = (list: LX.Download.ListItem[], musicInfo: LX.Music.MusicInfo, type: LX.Quality, ext: string): boolean => {
 //   return list.some(s => s.id === musicInfo.id && (s.metadata.type === type || s.metadata.ext === ext))
 // }
 
 /**
  * 创建下载任务信息
- * @param fileNameTemplate 文件名模板（`download.fileNameTemplate`）
  * @param degradeWhenUnsupported 请求档位不可用时是否静默降档（`download.degradeWhenUnsupported`）
  * @returns 请求档位不可用且不允许降档时返回 null（不建任务，由调用方提示；见 `createDownloadTasks`）
  */
-export const createDownloadInfo = (musicInfo: LX.Music.MusicInfoOnline, type: LX.Quality, fileNameTemplate: string, qualityList: LX.QualityList, degradeWhenUnsupported = true, listId?: string): LX.Download.ListItem | null => {
+export const createDownloadInfo = (musicInfo: LX.Music.MusicInfoOnline, type: LX.Quality, qualityList: LX.QualityList, degradeWhenUnsupported = true, listId?: string): LX.Download.ListItem | null => {
   const quality = getMusicType(musicInfo, type, qualityList, degradeWhenUnsupported)
   if (!quality) return null
   const ext = getExt(quality)
@@ -124,7 +75,8 @@ export const createDownloadInfo = (musicInfo: LX.Music.MusicInfoOnline, type: LX
       ext,
       filePath: '',
       listId,
-      fileName: createDownloadFileName(fileNameTemplate, musicInfo, ext),
+      // 暂存文件名 = 歌曲 id + 实际档位（唯一、无非法字符；收编与续传的判据都稳定）
+      fileName: `${musicInfo.id}_${quality}.${ext}`,
     },
   }
   // downloadInfo.metadata.filePath = joinPath(savePath, downloadInfo.metadata.fileName)

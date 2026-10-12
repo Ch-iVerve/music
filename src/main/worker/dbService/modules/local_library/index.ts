@@ -8,9 +8,9 @@ import { addTracks, countTracks, queryAllTracks, queryTracksByIds, removeTracks,
  * 写接口也不标 `async`——与 `music_url`/`follow_feed` 域的既有形状一致。
  */
 
-/** 批量写曲目（撞已有哈希的行保留首见，见 dbHelper） */
-export const localLibraryAdd = (rows: LX.LocalLibrary.TrackInput[]) => {
-  addTracks(rows)
+/** 批量写曲目（撞已有哈希的行保留首见，见 dbHelper）；`origin` 默认 `import`，下载收编传 `download` */
+export const localLibraryAdd = (rows: LX.LocalLibrary.TrackInput[], origin?: LX.LocalLibrary.Origin) => {
+  addTracks(rows, origin)
 }
 
 /** 读全部曲目（默认按名称排序；视图的排序/分组在渲染侧其上再做） */

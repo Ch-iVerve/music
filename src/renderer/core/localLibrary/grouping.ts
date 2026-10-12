@@ -8,7 +8,7 @@
  * - 输出行是**扁平序列**（组头行 + 曲目行交错），虚拟列表按统一行高渲染。
  */
 
-export type GroupDim = null | 'singer' | 'album' | 'genre' | 'year' | 'trackNum' | 'discNum' | 'ext'
+export type GroupDim = null | 'singer' | 'album' | 'genre' | 'year' | 'trackNum' | 'discNum' | 'ext' | 'origin'
 
 export type LibraryTrack = LX.LocalLibrary.Track & { filePath?: string }
 
@@ -45,6 +45,8 @@ export const groupLibraryTracks = (
   query: string,
   collapsedKeys: Set<string>,
   unknownLabel: string,
+  /** 仅 `origin` 维度的显示名映射（`import`/`download` → 用户可见文案；缺省则显示原值） */
+  originLabels: Record<string, string> = {},
 ): LibraryRow[] => {
   const filtered = filterLibraryTracks(tracks, query)
   if (!dim) {
@@ -58,7 +60,8 @@ export const groupLibraryTracks = (
     const key = value === '' ? UNKNOWN_KEY : value
     let group = groups.get(key)
     if (!group) {
-      group = { label: value === '' ? unknownLabel : value, items: [] }
+      const label = value === '' ? unknownLabel : (dim == 'origin' ? originLabels[value] ?? value : value)
+      group = { label, items: [] }
       groups.set(key, group)
     }
     group.items.push({ track, playIndex })

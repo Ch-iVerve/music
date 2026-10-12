@@ -1,34 +1,18 @@
-import { checkPath, joinPath, extname, readFile, getFileStats } from '@common/utils/nodejs'
+import { checkPath, extname, readFile, getFileStats } from '@common/utils/nodejs'
 import { decodeKrc } from '@common/utils/lyricUtils/kg'
 import { type IAudioMetadata } from 'music-metadata'
-
-export const checkDownloadFileAvailable = async(musicInfo: LX.Download.ListItem, savePath: string): Promise<boolean> => {
-  return musicInfo.isComplate && !/\.ape$/.test(musicInfo.metadata.fileName) &&
-    (await checkPath(musicInfo.metadata.filePath) || await checkPath(joinPath(savePath, musicInfo.metadata.fileName)))
-}
 
 export const checkLocalFileAvailable = async(musicInfo: LX.Music.MusicInfoLocal): Promise<boolean> => {
   return checkPath(musicInfo.meta.filePath)
 }
 
 /**
- * 检查音乐文件是否存在
- * @param musicInfo
- * @param savePath
+ * 下载条目的文件路径。集合概念统一后下载文件只存在于「暂存目录」（完成即收编入库、原件删除），
+ * 不再有「文件名改动 / 挪窝」的回退查找场景——savePath 兜底（旧 `download.savePath` 设置）随该批下架。
  */
-export const checkMusicFileAvailable = async(musicInfo: LX.Music.MusicInfo | LX.Download.ListItem, savePath: string): Promise<boolean> => {
-  if ('progress' in musicInfo) {
-    return checkDownloadFileAvailable(musicInfo, savePath)
-  } else if (musicInfo.source == 'local') {
-    return checkLocalFileAvailable(musicInfo)
-  } else return true
-}
-
-export const getDownloadFilePath = async(musicInfo: LX.Download.ListItem, savePath: string): Promise<string> => {
-  if (musicInfo.isComplate && !/\.ape$/.test(musicInfo.metadata.fileName)) {
-    if (await checkPath(musicInfo.metadata.filePath)) return musicInfo.metadata.filePath
-    const path = joinPath(savePath, musicInfo.metadata.fileName)
-    if (await checkPath(path)) return path
+export const getDownloadFilePath = async(musicInfo: LX.Download.ListItem): Promise<string> => {
+  if (musicInfo.isComplate && !/\.ape$/.test(musicInfo.metadata.fileName) && await checkPath(musicInfo.metadata.filePath)) {
+    return musicInfo.metadata.filePath
   }
   return ''
 }
@@ -37,21 +21,6 @@ export const getLocalFilePath = async(musicInfo: LX.Music.MusicInfoLocal): Promi
   return (await checkPath(musicInfo.meta.filePath)) ? musicInfo.meta.filePath : ''
 }
 
-
-/**
- * 获取音乐文件路径
- * @param musicInfo
- * @param savePath
- * @returns
- */
-export const getMusicFilePath = async(musicInfo: LX.Music.MusicInfo | LX.Download.ListItem, savePath: string): Promise<string> => {
-  if ('progress' in musicInfo) {
-    return getDownloadFilePath(musicInfo, savePath)
-  } else if (musicInfo.source == 'local') {
-    return getLocalFilePath(musicInfo)
-  }
-  return ''
-}
 
 let prevFileInfo: {
   path: string

@@ -1,6 +1,3 @@
-import path from 'node:path'
-import os from 'node:os'
-
 const isMac = process.platform == 'darwin'
 const isWin = process.platform == 'win32'
 
@@ -136,29 +133,10 @@ const defaultSetting: LX.AppSetting = {
   // 默认 30 = 改造前大多数列表的值。发现页「推荐歌单」固定 9 条（3×3 网格配平），不跟它走
   'list.pageSize': 30,
 
-  'download.enable': false,
-  'download.isSavePathGroupByListName': false,
-  'download.savePath': path.join(os.homedir(), 'Desktop'),
-  // 下载文件名模板：只有 `歌名` / `歌手` 两个占位词，其余文本原样（渲染见 `formatMusicName`）。
-  // 默认值就是改造前的第一个预设，所以不动它时落盘文件名逐字符不变；同一个值还兼作「复制歌名」的格式
-  'download.fileNameTemplate': '歌名 - 歌手',
   'download.maxDownloadNum': 3,
-  'download.skipExistFile': true,
   // 请求的档位在当前音源不支持、或这首歌没有该档资源时：true = 按现有逻辑静默降档，
   // false = 不创建任务并提示用户。默认 true = 改造前行为（消费点 `worker/download/utils.ts` 的 getMusicType）
   'download.degradeWhenUnsupported': true,
-  'download.isDownloadLrc': false,
-  'download.isDownloadLxLrc': true,
-  'download.isDownloadTLrc': false,
-  'download.isDownloadRLrc': false,
-  'download.lrcFormat': 'utf8',
-  'download.isEmbedPic': true,
-  'download.isEmbedLyric': false,
-  'download.isEmbedLyricLx': true,
-  'download.isEmbedLyricT': false,
-  'download.isEmbedLyricR': false,
-  // 单源下无实现，多源恢复时启用（不给入口，登记在 settingMetadata 的 INTERNAL_ONLY_KEYS）
-  'download.isUseOtherSource': false,
 
   // URL 缓存（`music_url` 表：在线取流时写的一行「歌曲id_音质 → URL」）的回收策略，
   // 设置页入口在「数据与存储 → 缓存回收策略」（票 08）。

@@ -10,21 +10,24 @@ import { getDB } from '../../db'
  */
 
 /** better-sqlite3 不接受 boolean 绑定，布尔列以 0/1 落库；出入库的换算在 dbHelper。
- * `importedAt` 不在其中：INSERT 的值由 dbHelper 统一填、UPDATE 不写它（入库事实不可改） */
-export interface TrackBinding extends Omit<LX.LocalLibrary.Track, 'hasPic' | 'hasLyric' | 'importedAt'> {
+ * `importedAt` 不在其中：INSERT 的值由 dbHelper 统一填、UPDATE 不写它（入库事实不可改）；
+ * `origin` 也是（INSERT 由 `addTracks` 按批次填，UPDATE 不写）。 */
+export interface TrackBinding extends Omit<LX.LocalLibrary.Track, 'hasPic' | 'hasLyric' | 'importedAt' | 'origin'> {
   hasPic: number
   hasLyric: number
+  /** INSERT 时由 `addTracks` 统一填（整批一个来源）；UPDATE 不写它——入库事实不可改 */
+  origin?: LX.LocalLibrary.Origin
 }
 
 /** 批量写曲目（`INSERT OR IGNORE`：撞上已有哈希**保留首见行**——内容相同天然去重，不用新值覆盖） */
 export const createTrackInsertStatement = () => {
   const db = getDB()
-  return db.prepare<[TrackBinding & { importedAt: number }]>(`
+  return db.prepare<[TrackBinding & { importedAt: number, origin: LX.LocalLibrary.Origin }]>(`
     INSERT OR IGNORE INTO "main"."local_library_track"
       ("id", "name", "singer", "album", "interval", "ext", "size",
-       "year", "genre", "track_num", "disc_num", "has_pic", "has_lyric", "imported_at")
+       "year", "genre", "track_num", "disc_num", "has_pic", "has_lyric", "imported_at", "origin")
     VALUES (@id, @name, @singer, @album, @interval, @ext, @size,
-       @year, @genre, @trackNum, @discNum, @hasPic, @hasLyric, @importedAt)
+       @year, @genre, @trackNum, @discNum, @hasPic, @hasLyric, @importedAt, @origin)
   `)
 }
 
@@ -43,7 +46,8 @@ const TRACK_SELECT_COLUMNS = `
       "disc_num" AS "discNum",
       "has_pic" AS "hasPic",
       "has_lyric" AS "hasLyric",
-      "imported_at" AS "importedAt"`
+      "imported_at" AS "importedAt",
+      "origin" AS "origin"`
 
 /** 读全部曲目（默认序：名称不区分大小写，同名列按歌手——渲染侧的排序/分组在其上再排） */
 export const createTrackQueryAllStatement = () => {

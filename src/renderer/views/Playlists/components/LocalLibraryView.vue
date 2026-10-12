@@ -110,8 +110,7 @@ import LibraryBatchEditModal from './LibraryBatchEditModal.vue'
 import LibraryExportModal from './LibraryExportModal.vue'
 import { LIST_IDS } from '@common/constants'
 import { getEnvParams, localLibraryGetAll, localLibraryRemove, showSelectDialog } from '@renderer/utils/ipc'
-import { appSetting } from '@renderer/store/setting'
-import { formatMusicName } from '@renderer/utils'
+import { formatMusicName, DEFAULT_MUSIC_NAME_TEMPLATE } from '@renderer/utils'
 import { addTempPlayList } from '@renderer/store/player/action'
 import { dialog } from '@renderer/plugins/Dialog'
 import {
@@ -189,6 +188,8 @@ export default {
       { dim: 'trackNum', label: window.i18n.t('playlists__group_track_num') },
       { dim: 'discNum', label: window.i18n.t('playlists__group_disc_num') },
       { dim: 'ext', label: window.i18n.t('playlists__group_ext') },
+      // 「来源」（导入/下载；票 03 的 origin 标记）——下载完成自动入库的歌按它可与导入的分开看
+      { dim: 'origin', label: window.i18n.t('playlists__group_origin') },
     ]))
     const handleDimChange = (value) => {
       dim.value = value
@@ -215,6 +216,7 @@ export default {
       query.value,
       collapsedKeys.value,
       window.i18n.t('playlists__group_unknown'),
+      { import: window.i18n.t('playlists__origin_import'), download: window.i18n.t('playlists__origin_download') },
     ))
     // 双击播放 = 在**当前过滤可见序**里播（与所见一致，而不是库里隐藏的顺序）
     const playEntries = computed(() => filterLibraryTracks(viewTracks.value, query.value)
@@ -374,7 +376,7 @@ export default {
           showEdit.value = true
           break
         case 'copyName':
-          clipboardWriteText(formatMusicName(appSetting['download.fileNameTemplate'], track.name, track.singer))
+          clipboardWriteText(formatMusicName(DEFAULT_MUSIC_NAME_TEMPLATE, track.name, track.singer))
           break
         case 'search':
           void router.push({

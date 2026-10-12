@@ -155,7 +155,8 @@ export default {
               tips: t('download'),
               icon: '#icon-nav-download',
               size,
-              enable: appSetting['download.enable'],
+              // 集合概念统一（D1/票 03）：下载开关已下架，入口常驻
+              enable: true,
               name: 'Download',
             },
             {

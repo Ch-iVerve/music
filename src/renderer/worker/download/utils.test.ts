@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createDownloadFileName, createDownloadInfo, getMusicType } from './utils'
+import { createDownloadInfo, getMusicType } from './utils'
 
 /**
  * `getMusicType` 的语义钉子 —— 尤其是「请求档不在支持列表时取 `list[list.length - 1]`
@@ -118,59 +118,18 @@ describe('getMusicType：关掉降档（degradeWhenUnsupported = false）', () =
   })
 })
 
-/**
- * 下载文件名 = 模板渲染（`formatMusicName`）+ 文件名安全（`filterFileName`）+ 截断（150 字符）。
- * 期望值按改造前的拼装式样推：`filterFileName(clipFileNameLength(formatMusicName(...)) + '.' + ext)`。
- */
-describe('createDownloadFileName（模板渲染 + 文件名安全）', () => {
-  const musicInfo = buildMusicInfo({ '128k': true })
-
-  it('默认模板的渲染结果与改造前逐字符一致（空格、连接符、扩展名位置都照旧）', () => {
-    expect(createDownloadFileName('歌名 - 歌手', musicInfo, 'mp3')).toBe('富士山下 - 陈奕迅.mp3')
-  })
-
-  it('三个老预设各自渲染出的文件名与改造前一致', () => {
-    expect(createDownloadFileName('歌手 - 歌名', musicInfo, 'flac')).toBe('陈奕迅 - 富士山下.flac')
-    expect(createDownloadFileName('歌名', musicInfo, 'ape')).toBe('富士山下.ape')
-  })
-
-  it('不含占位词的模板原样落盘（字面量就是文件名）', () => {
-    expect(createDownloadFileName('my_music', musicInfo, 'mp3')).toBe('my_music.mp3')
-  })
-
-  it('重复的占位词全部替换', () => {
-    expect(createDownloadFileName('歌名_歌名_歌手', musicInfo, 'mp3')).toBe('富士山下_富士山下_陈奕迅.mp3')
-  })
-
-  it('非法字符（含路径分隔符）被去掉，不会写出下载目录', () => {
-    expect(createDownloadFileName('a/b\\c:d*e?f#g"h<i>j|k 歌名', musicInfo, 'mp3')).toBe('abcdefghijk 富士山下.mp3')
-    expect(createDownloadFileName('../歌名', musicInfo, 'mp3')).toBe('..富士山下.mp3')
-  })
-
-  it('先截断到 150 字符再拼扩展名（扩展名不会被截掉）', () => {
-    const name = createDownloadFileName('a'.repeat(200), musicInfo, 'mp3')
-    expect(name).toBe(`${'a'.repeat(150)}.mp3`)
-    expect(name.length).toBe(154)
-  })
-
-  it('空模板 / 渲染后被非法字符吃空 → 回退默认模板，不会落盘成 `.mp3` 这种隐藏文件', () => {
-    expect(createDownloadFileName('', musicInfo, 'mp3')).toBe('富士山下 - 陈奕迅.mp3')
-    expect(createDownloadFileName('///', musicInfo, 'mp3')).toBe('富士山下 - 陈奕迅.mp3')
-  })
-})
-
 describe('createDownloadInfo（任务信息）', () => {
-  it('metadata.quality / id 用的是**实际**档位（降档发生时不是请求档位）', () => {
+  it('metadata.quality / id 用的是**实际**档位（降档发生时不是请求档位）；暂存文件名 = 歌曲 id + 实际档位', () => {
     const onlyLow = buildMusicInfo({ '128k': true })
-    const info = createDownloadInfo(onlyLow, 'flac24bit', '歌名 - 歌手', qualityList)
+    const info = createDownloadInfo(onlyLow, 'flac24bit', qualityList)
     expect(info?.metadata.quality).toBe('128k')
     expect(info?.metadata.ext).toBe('mp3')
     expect(info?.id).toBe(`${onlyLow.id}_128k_mp3`)
-    expect(info?.metadata.fileName).toBe('富士山下 - 陈奕迅.mp3')
+    expect(info?.metadata.fileName).toBe(`${onlyLow.id}_128k.mp3`)
   })
 
   it('关掉降档时返回 null（不建任务，调用方据此提示用户）', () => {
     const onlyLow = buildMusicInfo({ '128k': true })
-    expect(createDownloadInfo(onlyLow, 'flac24bit', '歌名 - 歌手', qualityList, false)).toBeNull()
+    expect(createDownloadInfo(onlyLow, 'flac24bit', qualityList, false)).toBeNull()
   })
 })

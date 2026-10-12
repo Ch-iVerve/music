@@ -20,6 +20,7 @@ const track = (id: string, overrides: Partial<LibraryTrack> = {}): LibraryTrack 
   hasPic: false,
   hasLyric: false,
   importedAt: 0,
+  origin: 'import',
   ...overrides,
 })
 
@@ -85,5 +86,20 @@ describe('groupLibraryTracks', () => {
     const rows = groupLibraryTracks(tracks, 'singer', '', new Set(), '无歌手')
     const unknownHeader = rows.find(row => row.type == 'header' && row.key == '__unknown__')
     expect(unknownHeader!.label).toBe('无歌手')
+  })
+
+  it('按「来源」分组：显示名走传入的映射（不把内部值 import/download 给用户）', () => {
+    const originTracks = [
+      track('x', { origin: 'import' }),
+      track('y', { origin: 'download' }),
+      track('z', { origin: 'download' }),
+    ]
+    const rows = groupLibraryTracks(originTracks, 'origin', '', new Set(), '未知', { import: '导入', download: '下载' })
+    const headers = rows.filter(row => row.type == 'header')
+    const labelToCount = Object.fromEntries(headers.map(row => [row.label, row.count]))
+    expect(labelToCount).toEqual({ 下载: 2, 导入: 1 })
+    // 缺省映射时显示原值（纯函数不依赖 i18n）
+    const raw = groupLibraryTracks(originTracks, 'origin', '', new Set(), '未知')
+    expect(raw.filter(row => row.type == 'header').map(row => row.label).sort((a, b) => a.localeCompare(b))).toEqual(['download', 'import'])
   })
 })

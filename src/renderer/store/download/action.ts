@@ -4,19 +4,20 @@ import {
   downloadTasksCreate,
   downloadTasksRemove,
   downloadTasksUpdate,
+  getEnvParams,
 } from '@renderer/utils/ipc'
 import {
   downloadList,
 } from './state'
 import { markRaw, toRaw } from '@common/utils/vueTools'
-import { getMusicUrl, getPicUrl, getLyricInfo } from '@renderer/core/music/online'
+import { getMusicUrl, getPicUrl } from '@renderer/core/music/online'
 import { appSetting } from '../setting'
 import { qualityList } from '..'
 import { proxyCallback } from '@renderer/worker/utils'
 import { arrPush, arrUnshift, joinPath } from '@renderer/utils'
 import { DOWNLOAD_STATUS } from '@common/constants'
 import { proxy } from '../index'
-import { buildSavePath } from './utils'
+import { ingestDownloadedFile } from '@renderer/core/localLibrary'
 import { dialog } from '@renderer/plugins/Dialog'
 
 const waitingUpdateTasks = new Map<string, LX.Download.ListItem>()
@@ -131,9 +132,6 @@ const setStatus = (downloadInfo: LX.Download.ListItem, status: LX.Download.Downl
   throttleUpdateTask([downloadInfo])
 }
 
-// 修复 1.1.x版本 酷狗源歌词格式
-const fixKgLyric = (lrc: string) => /\[00:\d\d:\d\d.\d+\]/.test(lrc) ? lrc.replace(/(?:\[00:(\d\d:\d\d.\d+\]))/gm, '[$1') : lrc
-
 const getProxy = () => {
   return proxy.enable && proxy.host ? {
     host: proxy.host,
@@ -144,68 +142,33 @@ const getProxy = () => {
   } : undefined
 }
 /**
- * 设置歌曲meta信息
+ * 把 QQ 元数据（歌名/歌手/专辑/封面）写进下载文件的内嵌 tag——收编入库时解析读的就是它
+ * （让库行拿到的是 QQ 元数据而不是文件原始 tag；封面尤其重要，库视图封面靠它）。
+ *
+ * 集合概念统一后固定「写文本 meta + 封面、不写歌词、不产生旁车」：原来那组
+ * `download.isEmbed*` / `isDownloadLrc` 设置已随本批下架（库的歌词走库内编辑，不靠下载旁车）。
+ * `ape` 不支持写 tag，直接跳过（沿用改造前的分支）。
  * @param downloadInfo 下载任务信息
  */
-const saveMeta = (downloadInfo: LX.Download.ListItem) => {
+const saveMeta = async(downloadInfo: LX.Download.ListItem): Promise<void> => {
   if (downloadInfo.metadata.quality === 'ape') return
-  const tasks: [Promise<string | null>, Promise<LX.Player.LyricInfo | null>] = [
-    appSetting['download.isEmbedPic']
-      ? downloadInfo.metadata.musicInfo.meta.picUrl
-        ? Promise.resolve(downloadInfo.metadata.musicInfo.meta.picUrl)
-        : getPicUrl({ musicInfo: downloadInfo.metadata.musicInfo, isRefresh: false }).catch(err => {
-          console.log(err)
-          return null
-        })
-      : Promise.resolve(null),
-    appSetting['download.isEmbedLyric']
-      ? getLyricInfo({ musicInfo: downloadInfo.metadata.musicInfo, isRefresh: false }).catch(err => {
-        console.log(err)
-        return null
-      })
-      : Promise.resolve(null),
-  ]
-  void Promise.all(tasks).then(([imgUrl, lyrics]) => {
-    const info = {
-      filePath: downloadInfo.metadata.filePath,
-      isEmbedLyricLx: appSetting['download.isEmbedLyricLx'],
-      isEmbedLyricT: appSetting['download.isEmbedLyricT'],
-      isEmbedLyricR: appSetting['download.isEmbedLyricR'],
-      title: downloadInfo.metadata.musicInfo.name,
-      artist: downloadInfo.metadata.musicInfo.singer?.replaceAll('、', ';'),
-      album: downloadInfo.metadata.musicInfo.meta.albumName,
-      APIC: imgUrl,
-    }
-    void window.lx.worker.download.writeMeta(info, lyrics ?? { lyric: '' }, getProxy())
-  })
-}
-
-/**
- * 保存歌词文件
- * @param downloadInfo 下载任务信息
- */
-const downloadLyric = (downloadInfo: LX.Download.ListItem) => {
-  if (!appSetting['download.isDownloadLrc']) return
-  void getLyricInfo({
-    musicInfo: downloadInfo.metadata.musicInfo,
-    isRefresh: false,
-  }).then(lrcs => {
-    if (lrcs.lyric) {
-      lrcs.lyric = fixKgLyric(lrcs.lyric)
-      const info = {
-        filePath: downloadInfo.metadata.filePath.substring(0, downloadInfo.metadata.filePath.lastIndexOf('.')) + '.lrc',
-        format: appSetting['download.lrcFormat'],
-        downloadLxlrc: appSetting['download.isDownloadLxLrc'],
-        downloadTlrc: appSetting['download.isDownloadTLrc'],
-        downloadRlrc: appSetting['download.isDownloadRLrc'],
-      }
-      void window.lx.worker.download.saveLrc(lrcs, info)
-    }
-  }).catch(err => {
-    // 同 saveMeta 的收口：歌词是下载的附属产物，取不到不该把已完成的任务标成失败，
-    // 但也不能让 rejection 漏到顶层（dev 下 webpack-dev-server 会弹全屏浮层吞鼠标，票 03b）——
-    // 只留一行带上下文的日志，任务状态仍由本层的 COMPLETED 决定。
-    console.log('[download] 保存歌词文件失败', err)
+  const imageUrl = downloadInfo.metadata.musicInfo.meta.picUrl ??
+    await getPicUrl({ musicInfo: downloadInfo.metadata.musicInfo, isRefresh: false }).catch(err => {
+      console.log(err)
+      return null
+    })
+  const info = {
+    filePath: downloadInfo.metadata.filePath,
+    isEmbedLyricLx: false,
+    isEmbedLyricT: false,
+    isEmbedLyricR: false,
+    title: downloadInfo.metadata.musicInfo.name,
+    artist: downloadInfo.metadata.musicInfo.singer?.replaceAll('、', ';'),
+    album: downloadInfo.metadata.musicInfo.meta.albumName,
+    APIC: imageUrl,
+  }
+  await window.lx.worker.download.writeMeta(info, { lyric: '' }, getProxy()).catch(err => {
+    console.log('[download] 写入内嵌 meta 失败（不影响入库）:', err)
   })
 }
 
@@ -267,13 +230,15 @@ const handleStartTask = async(downloadInfo: LX.Download.ListItem) => {
     if (downloadInfo.status != DOWNLOAD_STATUS.RUN) return
   }
 
-  const savePath = buildSavePath(downloadInfo)
+  // 落盘到媒体目录下的 `.tmp` 暂存区（集合概念统一 D1）：完成后由 ingestDownloadedFile 收编进库并删原件；
+  // 收编失败的残留会在重扫描里以「孤儿」出现（可收编/可清理），不会污染正常库视图
+  const savePath = joinPath((await getEnvParams()).mediaDir, '.tmp')
   const filePath = joinPath(savePath, downloadInfo.metadata.fileName)
   if (downloadInfo.metadata.filePath != filePath) updateFilePath(downloadInfo, filePath)
 
   setStatusText(downloadInfo, window.i18n.t('download_status_start'))
 
-  await window.lx.worker.download.startTask(toRaw(downloadInfo), savePath, appSetting['download.skipExistFile'], proxyCallback((event: LX.Download.DownloadTaskActions) => {
+  await window.lx.worker.download.startTask(toRaw(downloadInfo), savePath, true, proxyCallback((event: LX.Download.DownloadTaskActions) => {
     // console.log(event)
     switch (event.action) {
       case 'start':
@@ -281,12 +246,19 @@ const handleStartTask = async(downloadInfo: LX.Download.ListItem) => {
         break
       case 'complete':
         downloadInfo.progress = 100
-        saveMeta(downloadInfo)
-        downloadLyric(downloadInfo)
-        void window.lx.worker.download.removeTask(downloadInfo.id)
-        runingTask.delete(downloadInfo.id)
-        setStatus(downloadInfo, DOWNLOAD_STATUS.COMPLETED)
-        void checkStartTask()
+        // 下载完成 = 托管入库（集合概念统一 D1）：先写内嵌 meta（收编解析读的就是它），
+        // 再走库管线（复制进媒体目录、库行 origin='download'、成功/命中已有哈希后删暂存原件）。
+        // 入库失败只记日志、不把任务改回失败态——文件还在 `.tmp`，可在库视图手动导入
+        void (async() => {
+          await saveMeta(downloadInfo)
+          await ingestDownloadedFile(downloadInfo.metadata.filePath).catch(err => {
+            console.log('[download] 完成后入库失败（文件保留在暂存目录）:', err)
+          })
+          void window.lx.worker.download.removeTask(downloadInfo.id)
+          runingTask.delete(downloadInfo.id)
+          setStatus(downloadInfo, DOWNLOAD_STATUS.COMPLETED)
+          void checkStartTask()
+        })()
         break
       case 'refreshUrl':
         handleRefreshUrl(downloadInfo)
@@ -356,10 +328,9 @@ const filterTask = (list: LX.Download.ListItem[]) => {
  */
 export const createDownloadTasks = async(list: LX.Music.MusicInfoOnline[], quality: LX.Quality, listId?: string) => {
   if (!list.length) return
-  // 档位守卫与文件名模板都在 worker 里算（`download.degradeWhenUnsupported` / `download.fileNameTemplate`
-  // 由这里读出来传进去：worker 是独立 realm，拿不到主窗的 appSetting）
+  // 档位守卫与任务文件名都在 worker 里算（`download.degradeWhenUnsupported` 由这里读出来传进去：
+  // worker 是独立 realm，拿不到主窗的 appSetting）
   const { tasks: newTasks, unsupported } = await window.lx.worker.download.createDownloadTasks(list, quality,
-    appSetting['download.fileNameTemplate'],
     toRaw(qualityList.value),
     appSetting['download.degradeWhenUnsupported'],
     listId,

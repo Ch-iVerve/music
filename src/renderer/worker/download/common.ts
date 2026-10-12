@@ -13,5 +13,3 @@ export const writeMeta = ({ filePath, isEmbedLyricLx, isEmbedLyricT, isEmbedLyri
 }, lyric: LX.Music.LyricInfo, proxy?: { host: string, port: number }) => {
   setMeta(filePath, { ...meta, lyrics: buildLyrics(lyric, isEmbedLyricLx, isEmbedLyricT, isEmbedLyricR) }, proxy)
 }
-
-export { saveLrc } from './utils'

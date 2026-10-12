@@ -543,98 +543,14 @@ declare global {
       'list.pageSize': number
 
       /**
-       * 是否启用下载功能
-       */
-      'download.enable': boolean
-
-      /**
-       * 按列表名分组保存
-       */
-      'download.isSavePathGroupByListName': boolean
-
-      /**
-       * 下载路径
-       */
-      'download.savePath': string
-
-      /**
-       * 下载文件名模板：只有 `歌名` / `歌手` 两个占位词，其余文本原样（`formatMusicName`）。
-       * 同一个值还兼作「复制歌名」的格式
-       */
-      'download.fileNameTemplate': string
-
-      /**
        * 最大并发下载数
        */
       'download.maxDownloadNum': number
 
       /**
-       * 存在同名文件时跳过下载
-       */
-      'download.skipExistFile': boolean
-
-      /**
        * 请求的档位在当前音源不支持时是否静默降档（false = 跳过该歌并提示）
        */
       'download.degradeWhenUnsupported': boolean
-
-      /**
-       * 是否下载lrc文件
-       */
-      'download.isDownloadLrc': boolean
-
-      /**
-       * 是否在下载 lx 歌词
-       */
-      'download.isDownloadLxLrc': boolean
-
-      /**
-       * 是否下载翻译歌词文件
-       */
-      'download.isDownloadTLrc': boolean
-
-      /**
-       * 是否下载罗马音歌词文件
-       */
-      'download.isDownloadRLrc': boolean
-
-      /**
-       * 保存lrc时的文本编码格式
-       */
-      'download.lrcFormat': 'utf8' | 'gbk'
-
-      /**
-       * 是否在音频文件中嵌入歌曲封面
-       */
-      'download.isEmbedPic': boolean
-
-      /**
-       * 是否在音频文件中嵌入 lx 歌词
-       */
-      'download.isEmbedLyricLx': boolean
-
-      /**
-       * 是否在音频文件中嵌入歌词
-       */
-      'download.isEmbedLyric': boolean
-
-      /**
-       * 是否在音频文件中嵌入翻译歌词
-       */
-      'download.isEmbedLyricT': boolean
-
-      /**
-       * 是否在音频文件中嵌入罗马音歌词
-       */
-      'download.isEmbedLyricR': boolean
-
-      /**
-       * 歌曲源不可用时，是否启用换源下载
-       *
-       * 单源（只做 QQ 音乐）下无实现：保留 key 只为老备份文件迁移时不丢字段
-       * （`migrateSetting.ts` 的迁移映射）。多源恢复时启用，设置页不给入口。
-       */
-      'download.isUseOtherSource': boolean
 
       /**
        * URL 缓存（`music_url` 表，保存在线取流拿到的「歌曲id_音质 → URL」）的保留天数，

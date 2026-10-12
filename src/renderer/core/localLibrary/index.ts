@@ -1,5 +1,6 @@
 import path from 'node:path'
 import { ref } from '@common/utils/vueTools'
+import { LIST_IDS } from '@common/constants'
 import { addListMusics, createUserList, getListMusics } from '@renderer/store/list/action'
 import { getEnvParams, localLibraryAdd, localLibraryGetAll, localLibraryRemove, localLibraryUpdate } from '@renderer/utils/ipc'
 import { proxyCallback } from '@renderer/worker/utils'
@@ -114,6 +115,33 @@ export const importLocalFilesToList = async(listId: string, filePaths: string[])
     console.log('[localLibrary.import] 导入失败:', err)
     finished.value = { added: 0, skipped: 0, failed: [String(err)], cancelled: false }
   }
+}
+
+/**
+ * 下载完成后的**托管入库**（集合概念统一 D1）：把下载产物从 `.tmp` 暂存区收编进媒体目录。
+ *
+ * 复用 `ingestLocalFiles` 同款管线（哈希 → 已在库则跳过 → 解析 tag/封面/歌词 → 复制进 media/），
+ * 落库行记 `origin='download'`；成功（新入库或命中已有哈希）后删除暂存原件——下载文件是应用产出物，
+ * 非用户原始文件，不受「原始文件只读」约束。返回是否已入库；失败由调用方兜（文件留在暂存目录，
+ * 重扫描会把它当孤儿列出，可收编 / 可清理）。
+ */
+export const ingestDownloadedFile = async(filePath: string): Promise<boolean> => {
+  const mediaDir = (await getEnvParams()).mediaDir
+  const libraryTracks = await localLibraryGetAll()
+  const result = await window.lx.worker.main.ingestLocalFiles(
+    [filePath],
+    mediaDir,
+    libraryTracks.map(track => track.id),
+    proxyCallback(() => {}),
+    proxyCallback(() => false),
+  )
+  if (result.tracks.length) await localLibraryAdd(result.tracks, 'download')
+  const ingested = result.tracks.length > 0 || result.duplicateHashes.length > 0
+  if (ingested) {
+    await deleteOrphanFiles([filePath])
+    window.app_event.myListUpdate([LIST_IDS.LOCAL_LIBRARY])
+  }
+  return ingested
 }
 
 /** 展示一个即时汇总（不跑管线的场景：空目录等） */

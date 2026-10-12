@@ -68,9 +68,8 @@ import {
   setMusicInfo,
   setShowPlayerDetail,
 } from '@renderer/store/player/action'
-import { appSetting } from '@renderer/store/setting'
 import { togglePlay, playNext, playPrev } from '@renderer/core/player'
-import { formatMusicName } from '@renderer/utils'
+import { formatMusicName, DEFAULT_MUSIC_NAME_TEMPLATE } from '@renderer/utils'
 
 export default {
   name: 'CorePlayBar',
@@ -110,7 +109,7 @@ export default {
 
     const title = computed(() => {
       return musicInfo.name
-        ? formatMusicName(appSetting['download.fileNameTemplate'], musicInfo.name, musicInfo.singer)
+        ? formatMusicName(DEFAULT_MUSIC_NAME_TEMPLATE, musicInfo.name, musicInfo.singer)
         : ''
     })
 

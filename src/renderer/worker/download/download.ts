@@ -39,7 +39,6 @@ const sendAction = (id: string, action: LX.Download.DownloadTaskActions) => {
 
 /**
  * 创建下载任务
- * @param fileNameTemplate 文件名模板（`download.fileNameTemplate`）
  * @param degradeWhenUnsupported 请求档位不可用时是否静默降档（`download.degradeWhenUnsupported`）
  * @returns `tasks` 为建出来的任务；`unsupported` 为「请求档位不可用且不允许降档」被跳过的歌曲数
  *   （`createDownloadInfo` 返回 null 的唯一原因），调用方据此给用户明确提示，见 store/download/action.ts
@@ -47,13 +46,12 @@ const sendAction = (id: string, action: LX.Download.DownloadTaskActions) => {
 export const createDownloadTasks = (
   list: LX.Music.MusicInfoOnline[],
   quality: LX.Quality,
-  fileNameTemplate: string,
   qualityList: LX.QualityList,
   degradeWhenUnsupported: boolean,
   listId?: string,
 ): { tasks: LX.Download.ListItem[], unsupported: number } => {
   const tasks = list.map(musicInfo => {
-    return createDownloadInfo(musicInfo, quality, fileNameTemplate, qualityList, degradeWhenUnsupported, listId)
+    return createDownloadInfo(musicInfo, quality, qualityList, degradeWhenUnsupported, listId)
   }).filter((task): task is LX.Download.ListItem => task != null)
   return { tasks, unsupported: list.length - tasks.length }
   // commit('addTasks', { list: taskList, addMusicLocationType: rootState.setting.list.addMusicLocationType })

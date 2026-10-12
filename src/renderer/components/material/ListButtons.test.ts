@@ -41,7 +41,9 @@ const localSong = {
 } as any
 
 const mountBtns = (props: Record<string, any>) => mount(ListButtons, {
-  props: { index: 3, playBtn: false, listAddBtn: false, favBtn: true, ...props },
+  // `downloadBtn` 默认关：下载开关（`download.enable`）已随集合概念统一下架，不再有全局兜底，
+  // 想开下载键的用例显式传入（渲染契约本身在 ListButtons.vue 的 v-if）
+  props: { index: 3, playBtn: false, listAddBtn: false, favBtn: true, downloadBtn: false, ...props },
   global: { mocks: { $t } },
 })
 
@@ -150,7 +152,7 @@ describe('components/material/ListButtons.vue 的「移除」键', () => {
   })
 
   it('宿主没开（本地表那一侧）→ 不渲染这个键', () => {
-    // favBtn 关掉：本组件其余键默认也关（download 还要 appSetting 打开），此时按钮排应为空
+    // favBtn / downloadBtn 都关（本文件的 mountBtns 默认关），此时按钮排应为空
     const wrapper = mountBtns({ musicInfo: txSong('1'), favBtn: false })
 
     expect(wrapper.findAll('button')).toHaveLength(0)

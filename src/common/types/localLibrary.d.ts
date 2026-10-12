@@ -6,6 +6,9 @@ declare namespace LX {
      * 主键 `id` 是**内容哈希**：同一份音频无论从哪里导入，库中永远只有一行。
      * 歌词/封面/扩展 tag 全部内嵌在音频文件内部（spec D2 零旁车），库行只记「有无」标记。
      */
+    /** 入库来源：`import`（导入 / 收编）/ `download`（下载完成自动托管）——库视图的「来源」分组维度 */
+    type Origin = 'import' | 'download'
+
     interface Track {
       /** 内容哈希；同时是托管文件名（不含扩展名）与歌单本地条目的引用 id */
       id: string
@@ -30,8 +33,10 @@ declare namespace LX {
       hasLyric: boolean
       /** 入库时间（毫秒；同批共用一个值） */
       importedAt: number
+      /** 入库来源（v7 迁移给旧行补 `import`；下载收编写 `download`） */
+      origin: Origin
     }
-    /** 写入输入：`importedAt` 由 dbHelper 统一填（同批一个时间戳），调用方不传 */
-    type TrackInput = Omit<Track, 'importedAt'>
+    /** 写入输入：`importedAt` 由 dbHelper 统一填、`origin` 由写入口指定（默认 `import`），调用方不传 */
+    type TrackInput = Omit<Track, 'importedAt' | 'origin'>
   }
 }

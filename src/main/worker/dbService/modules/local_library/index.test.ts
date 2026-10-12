@@ -159,6 +159,7 @@ describe('更新：同事务同步引用歌单行', () => {
         interval: '04:05',
       }),
       importedAt: 0,
+      origin: 'import',
     })
 
     expect(changed).toBe(true)
@@ -188,7 +189,7 @@ describe('更新：同事务同步引用歌单行', () => {
   })
 
   it('更新不存在的曲目：返回 false、无副作用、不抛错', () => {
-    expect(localLibraryUpdate({ ...track('ghost'), importedAt: 0 })).toBe(false)
+    expect(localLibraryUpdate({ ...track('ghost'), importedAt: 0, origin: 'import' })).toBe(false)
   })
 })
 

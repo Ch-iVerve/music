@@ -141,7 +141,6 @@ afterEach(() => {
   mountedWrappers = []
   // 还原成 `defaultSetting` 里的默认值，别把这次改动漏给同文件之后的用例
   appSetting['list.actionButtonsVisible'] = false
-  appSetting['download.enable'] = false
   qualityList.value = {}
 })
 
@@ -219,7 +218,6 @@ describe('components/common/ListMusicTable 行内下载键的可用性（本地 
 
   it('在线 tx 歌曲 + 源声明了音质档位 → 有下载键', async() => {
     qualityList.value = DECLARED_QUALITYS
-    appSetting['download.enable'] = true
 
     const wrapper = mountTable([txSong('1')])
     mountedWrappers.push(wrapper)
@@ -230,7 +228,6 @@ describe('components/common/ListMusicTable 行内下载键的可用性（本地 
 
   it('本地文件 → 没有下载键（即使源「支持」；对照同一行的播放键在）', async() => {
     qualityList.value = DECLARED_QUALITYS
-    appSetting['download.enable'] = true
 
     const wrapper = mountTable([localSong])
     mountedWrappers.push(wrapper)

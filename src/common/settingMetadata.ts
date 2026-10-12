@@ -177,9 +177,6 @@ export const INTERNAL_ONLY_KEYS: ReadonlyArray<keyof LX.AppSetting> = [
   // 内置取流实现 id：单源自用产品的产品决策，值恒为 `builtin`，对用户没有可选项；
   // 改错会让整条在线取流失效（qualityList 为空 → 搜得到点不动）。消费点 core/apiSource.ts:36,47。
   'common.apiSource',
-  // 多源时代的预留键：单源下没有「其他源」可实现，删了会让老备份文件迁移时丢字段
-  // （migrateSetting.ts:110 的迁移映射）。保留 key，多源恢复时再启用。
-  'download.isUseOtherSource',
   // 协议签署状态，不是偏好设置：由首启 PactModal 写入，导入设置 / 备份时会被强制重置为 false。
   // 入口是首启协议弹窗；设置页只在「关于 → 许可」显示状态文案。
   'common.isAgreePact',
@@ -592,59 +589,16 @@ export const SETTING_SECTIONS: readonly Section[] = [
     navGroup: 'my_music',
     groups: [
       {
-        // §4.1 总开关与路径
-        id: 'download_switch_path',
-        i18nKey: 'setting__download_switch_path_title', // 新增
-        items: [
-          // 默认 false：关掉后左栏「下载」入口与各处下载按钮消失（已存在的任务仍会跑完）
-          { key: 'download.enable', i18nKey: 'setting__download_enable', control: 'checkbox' },
-          // 目录不存在 / 没有写权限时下载会失败（错误写进下载列表）；改路径不会移动已下载的文件
-          { key: 'download.savePath', i18nKey: 'setting__download_path', control: 'pathPicker', helpI18nKey: 'setting__download_path_tip' },
-          // 开 = 在 savePath 下再套一层「所属列表名」子目录
-          { key: 'download.isSavePathGroupByListName', i18nKey: 'setting_download_save_group_list_name', control: 'checkbox' },
-        ],
-      },
-      {
-        // §4.2 并发与命名
+        // §4 并发与档位。2026-10-12 集合概念统一：总开关/路径/命名、歌词与元数据、格式与编码
+        // 三组随「下载托管化」下架——下载文件进库统一零旁车全内嵌，「保存位置 / 文件名模板 /
+        // 旁车歌词 / 嵌入开关」不再可配（拿文件走库导出向导）
         id: 'download_concurrent_naming',
         i18nKey: 'setting__download_concurrent_naming_title', // 新增
         items: [
           // 真并发放到 worker 的闸门（1–6）；>3 会先弹确认（确认文案里的「自定义源」是残留，附 A7）
           { key: 'download.maxDownloadNum', i18nKey: 'setting__download_max_num', control: 'numberInput', helpI18nKey: 'setting__download_max_num_tooltip' },
-          // 关掉后同目录同名文件会被覆盖/改名
-          { key: 'download.skipExistFile', i18nKey: 'setting__download_skip_exist_file', control: 'checkbox' },
-          // 自由模板串（`歌名` / `歌手` 两个占位词）；同一个值还兼作「复制歌名」的格式
-          // （附 B6：本轮只把两处语义与文案讲清，拆成第二个 key 留待有真实需求时再做）
-          { key: 'download.fileNameTemplate', i18nKey: 'setting__download_name', control: 'input', helpI18nKey: 'setting__download_file_name_tip' },
           // 关掉后请求档位不可用的歌不建任务，由下载入队处弹提示（附 C 的 §5-C）
           { key: 'download.degradeWhenUnsupported', i18nKey: 'setting__download_degrade_when_unsupported', control: 'checkbox', helpI18nKey: 'setting__download_degrade_when_unsupported_tip' },
-        ],
-      },
-      {
-        // §4.3 歌词与元数据（附 B5：写歌词文件 × 嵌入音频合成一张 2×4 矩阵，内容见票 03）
-        id: 'download_lyric_meta',
-        i18nKey: 'setting__download_lyric_meta_title', // 新增
-        items: [
-          // 写歌词文件组的总闸：关掉后下面三项全部失效
-          { key: 'download.isDownloadLrc', i18nKey: 'setting__download_lyric_title', control: 'checkbox' },
-          { key: 'download.isDownloadTLrc', i18nKey: 'setting__download_tlyric', control: 'checkbox' },
-          { key: 'download.isDownloadRLrc', i18nKey: 'setting__download_rlyric', control: 'checkbox' },
-          // i18n key 名不许改（AGENTS §8：指 LX 定义的逐字歌词格式名），只改值文案
-          { key: 'download.isDownloadLxLrc', i18nKey: 'setting__download_lxlyric', control: 'checkbox' },
-          { key: 'download.isEmbedPic', i18nKey: 'setting__download_embed_pic', control: 'checkbox' },
-          // 嵌入组总闸：关掉后 T/R/Lx 三项禁用且 saveMeta 不取歌词
-          { key: 'download.isEmbedLyric', i18nKey: 'setting__download_embed_lyric', control: 'checkbox' },
-          { key: 'download.isEmbedLyricT', i18nKey: 'setting__download_embed_tlyric', control: 'checkbox' },
-          { key: 'download.isEmbedLyricR', i18nKey: 'setting__download_embed_rlyric', control: 'checkbox' },
-          { key: 'download.isEmbedLyricLx', i18nKey: 'setting__download_embed_lxlyric', control: 'checkbox' },
-        ],
-      },
-      {
-        // §4.4 格式与编码（只留 lrcFormat 一项：编码只管写出的 .lrc 文件，不管嵌入）
-        id: 'download_format',
-        i18nKey: 'setting__download_format_title', // 新增
-        items: [
-          { key: 'download.lrcFormat', i18nKey: 'setting__download_lyric_format', control: 'checkboxGroup', helpI18nKey: 'setting__download_lyric_format_tip' },
         ],
       },
     ],

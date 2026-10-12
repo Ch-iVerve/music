@@ -2,12 +2,11 @@ import { computed, nextTick, reactive, ref, shallowReactive } from '@common/util
 import { useRouter } from '@common/utils/vueRouter'
 import { clipboardWriteText } from '@common/utils/electron'
 import { assertApiSupport } from '@renderer/store/utils'
-import { appSetting } from '@renderer/store/setting'
 import { playMusicInfo } from '@renderer/store/player/state'
 import musicSdk from '@renderer/utils/musicSdk'
 import { useI18n } from '@renderer/plugins/i18n'
 import { dialog } from '@renderer/plugins/Dialog'
-import { formatMusicName } from '@renderer/utils'
+import { formatMusicName, DEFAULT_MUSIC_NAME_TEMPLATE } from '@renderer/utils'
 import { addDislikeInfo, hasDislike } from '@renderer/core/dislikeList'
 import { playNext } from '@renderer/core/player'
 import useFavSong from '@renderer/utils/compositions/useFavSong'
@@ -154,7 +153,7 @@ export default () => {
 
   const handleCopyName = () => {
     const minfo = currentMusic.value
-    if (minfo) clipboardWriteText(formatMusicName(appSetting['download.fileNameTemplate'], minfo.name, minfo.singer))
+    if (minfo) clipboardWriteText(formatMusicName(DEFAULT_MUSIC_NAME_TEMPLATE, minfo.name, minfo.singer))
   }
 
   const handleSearch = () => {

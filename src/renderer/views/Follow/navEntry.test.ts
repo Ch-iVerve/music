@@ -4,7 +4,6 @@ import { nextTick } from 'vue'
 // 只为副作用：`createI18n()` 起的是 `@root/lang` 里那个单例，NavBar 的 `useI18n()` 读的正是它
 import '@renderer/plugins/i18n'
 import NavBar from '@renderer/components/layout/Aside/NavBar.vue'
-import { appSetting } from '@renderer/store/setting'
 import { followFeedState } from '@renderer/store/followFeed/state'
 import { loadFollowFeedBadge } from '@renderer/store/followFeed/action'
 
@@ -56,8 +55,6 @@ const badgeEl = (wrapper: ReturnType<typeof mountNavBar>) =>
 
 beforeEach(() => {
   vi.stubGlobal('ResizeObserver', FakeResizeObserver)
-  // 「我的」组最后一项是「我的下载」，它按设置开关渲染——不打开就少一项，末位断言会错位
-  appSetting['download.enable'] = true
   followFeedState.unreadCount = 0
   vi.mocked(loadFollowFeedBadge).mockClear()
 })

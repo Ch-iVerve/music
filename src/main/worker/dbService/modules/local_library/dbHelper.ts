@@ -36,16 +36,17 @@ const toTrack = (row: Omit<LX.LocalLibrary.Track, 'hasPic' | 'hasLyric'> & { has
 })
 
 /**
- * 批量写曲目。整批共用一个 `importedAt`（同 `music_url`/`follow_feed` 的口径：它记「这批什么时候进的库」，
- * 逐行取 `Date.now()` 只会让同批行差出几毫秒）。撞已有哈希的行被 SQLite 安静跳过（`INSERT OR IGNORE`），
- * 去重的真正判据在渲染侧管线（票 02 先查再拷），这里的 IGNORE 是最后一道兜底。
+ * 批量写曲目。整批共用一个 `importedAt` 与一个 `origin`（同 `music_url`/`follow_feed` 的口径：它们记
+ * 「这批什么时候、从哪进的库」，逐行取 `Date.now()` 只会让同批行差出几毫秒）。撞已有哈希的行被
+ * SQLite 安静跳过（`INSERT OR IGNORE`），去重的真正判据在渲染侧管线（票 02 先查再拷），
+ * 这里的 IGNORE 是最后一道兜底。
  */
-export const addTracks = (rows: LX.LocalLibrary.TrackInput[]) => {
+export const addTracks = (rows: LX.LocalLibrary.TrackInput[], origin: LX.LocalLibrary.Origin = 'import') => {
   const db = getDB()
   const statement = createTrackInsertStatement()
   const importedAt = Date.now()
   db.transaction((rows: LX.LocalLibrary.TrackInput[]) => {
-    for (const row of rows) statement.run({ ...toBinding(row), importedAt })
+    for (const row of rows) statement.run({ ...toBinding(row), importedAt, origin })
   })(rows)
 }
 

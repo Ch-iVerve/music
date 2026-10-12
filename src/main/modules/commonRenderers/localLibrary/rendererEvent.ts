@@ -10,8 +10,8 @@ export default () => {
   mainHandle<LX.LocalLibrary.Track[]>(LOCAL_LIBRARY_EVENT_NAME.get_all, async() => {
     return global.lx.worker.dbService.localLibraryAll()
   })
-  mainHandle<LX.LocalLibrary.TrackInput[]>(LOCAL_LIBRARY_EVENT_NAME.add, async({ params: tracks }) => {
-    return global.lx.worker.dbService.localLibraryAdd(tracks)
+  mainHandle<{ tracks: LX.LocalLibrary.TrackInput[], origin?: LX.LocalLibrary.Origin }>(LOCAL_LIBRARY_EVENT_NAME.add, async({ params }) => {
+    return global.lx.worker.dbService.localLibraryAdd(params.tracks, params.origin)
   })
   mainHandle<LX.LocalLibrary.Track, boolean>(LOCAL_LIBRARY_EVENT_NAME.update, async({ params: track }) => {
     return global.lx.worker.dbService.localLibraryUpdate(track)

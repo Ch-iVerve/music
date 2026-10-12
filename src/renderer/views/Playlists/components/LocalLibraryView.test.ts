@@ -67,8 +67,8 @@ describe('LocalLibraryView 挂载', () => {
 
     const toolbar = wrapper.find('[class*=toolbar]')
     expect(toolbar.exists()).toBe(true)
-    // 分组胶囊八枚（不分组 + 七个维度）：任一绑定缺失导致渲染中断时这里会少于 8
-    expect(wrapper.find('[class*=capsules]').findAll('button')).toHaveLength(8)
+    // 分组胶囊九枚（不分组 + 七个 tag 维度 + 来源）：任一绑定缺失导致渲染中断时这里会少于 9
+    expect(wrapper.find('[class*=capsules]').findAll('button')).toHaveLength(9)
     wrapper.unmount()
   })
 })
