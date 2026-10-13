@@ -122,6 +122,7 @@
   "fav__add": "QQ 즐겨찾기에 추가",
   "fav__add_failed": "즐겨찾기 추가에 실패했습니다. 나중에 다시 시도하세요",
   "fav__cancel": "QQ 즐겨찾기 해제",
+  "fav__cancel_confirm": "“{name}”을(를) QQ 즐겨찾기에서 해제할까요?",
   "fav__cancel_failed": "즐겨찾기 해제에 실패했습니다. 나중에 다시 시도하세요",
   "favorites": "내 즐겨찾기",
   "favorites__tab_albums": "앨범",

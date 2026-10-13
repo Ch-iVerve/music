@@ -5,6 +5,7 @@ import { addHistoryWord } from '@renderer/store/search/action'
 // import { useI18n } from '@renderer/plugins/i18n'
 // import { } from '@renderer/store/search/state'
 import { searchText } from '@renderer/store/search/state'
+import { searchQueueId } from '@renderer/utils/queueIds'
 import { search as searchMusic, listInfos, normalizeSource, type ListInfo } from '@renderer/store/search/music'
 import { assertApiSupport } from '@renderer/store/utils'
 import { appSetting } from '@renderer/store/setting'
@@ -52,7 +53,7 @@ export default () => {
 
     if (!assertApiSupport(targetSong.source)) return
 
-    await playMusicList(`search__${searchText.value ?? ''}`, [...listInfo.value.list], index)
+    await playMusicList(searchQueueId(searchText.value), [...listInfo.value.list], index)
   }
 
   return {

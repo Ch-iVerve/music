@@ -5,6 +5,7 @@ import { addListMusics, getListMusicsFromCache } from '@renderer/store/list/acti
 import { tempListMeta } from '@renderer/store/list/state'
 import { playInfo } from '@renderer/store/player/state'
 import music from '@renderer/utils/musicSdk'
+import { RADAR_QUEUE_ID } from '@renderer/utils/queueIds'
 import { refillPlayQueueForBatch } from './queueBatch'
 
 /**
@@ -26,12 +27,6 @@ import { refillPlayQueueForBatch } from './queueBatch'
  */
 
 const t = (key: string) => window.i18n.t(key as any)
-
-/**
- * 雷达列表在播放队列里的身份（工单 06 的 `listId` 与工单 07 的「翻页续播」判定都用它）。
- * 雷达没有真实歌单 id（是流式推荐），所以自造一个稳定的标识。
- */
-export const RADAR_QUEUE_ID = 'radar__recommend'
 
 /** 雷达列表的区块状态（发现页 SongBlock 的同形状，字段含义见那边的注释）。 */
 export interface RadarBlock {

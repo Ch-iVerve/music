@@ -553,8 +553,11 @@ export const loadFavSonglistIds = async(force = false): Promise<void> => {
 /**
  * 收藏 / 取消收藏专辑。
  * @param album 专辑页拿到的详情（要 `id` 数字 id 与 `mid`）
+ * @param options.reload 写成功后是否重拉收藏专辑列表第 1 页（默认 true）。
+ *   收藏页卡片上的取消收藏传 false——那次重拉会把「加载更多」翻出来的页丢掉
+ *   （见 `removeFavAlbumFromList`），它自己就地删卡。
  */
-export const setAlbumFav = async(album: { id: string, mid: string }, fav: boolean): Promise<void> => {
+export const setAlbumFav = async(album: { id: string, mid: string }, fav: boolean, options: { reload?: boolean } = {}): Promise<void> => {
   const ok = await music.tx.album.setFavAlbum(album.id, fav)
   if (!ok) throw new Error(fav ? t('fav__add_failed') : t('fav__cancel_failed'))
   // 本地集合与列表都跟着改，按钮状态立刻正确（`user_center` 的收藏专辑列表若已加载也一并刷新）
@@ -563,11 +566,11 @@ export const setAlbumFav = async(album: { id: string, mid: string }, fav: boolea
   if (fav && index < 0) ids.unshift(album.mid)
   if (!fav && index > -1) ids.splice(index, 1)
   setList(favAlbumIds, ids)
-  if (favAlbums.length) void reloadFavAlbums()
+  if (options.reload !== false && favAlbums.length) void reloadFavAlbums()
 }
 
-/** 收藏 / 取消收藏歌单（入参是歌单的 tid）。 */
-export const setPlaylistFav = async(tid: string, fav: boolean): Promise<void> => {
+/** 收藏 / 取消收藏歌单（入参是歌单的 tid；`options.reload` 同上）。 */
+export const setPlaylistFav = async(tid: string, fav: boolean, options: { reload?: boolean } = {}): Promise<void> => {
   const ok = await music.tx.songList.setFavPlaylist(tid, fav)
   if (!ok) throw new Error(fav ? t('fav__add_failed') : t('fav__cancel_failed'))
   const ids = favPlaylistIds.slice()
@@ -575,7 +578,31 @@ export const setPlaylistFav = async(tid: string, fav: boolean): Promise<void> =>
   if (fav && index < 0) ids.unshift(String(tid))
   if (!fav && index > -1) ids.splice(index, 1)
   setList(favPlaylistIds, ids)
-  if (favLists.length) void reloadFavLists()
+  if (options.reload !== false && favLists.length) void reloadFavLists()
+}
+
+/**
+ * 收藏页内**取消收藏专辑**（票 06 E3）：写云端 + 就地移出列表。
+ *
+ * 与 `setAlbumFav(…, false)` 的差别只有两点：传 `reload: false`（那次重拉会把用户
+ * 「加载更多」翻出来的页丢掉——收藏专辑动辄几百条），以及这一层负责把卡片就地删掉
+ * （卡上动作要立刻见到结果）。
+ * 卡片的 `id` 是 mid（跳详情 / 收藏态判据都用它），写接口要的是数字 `albumId`
+ * （`tx/user.js` 的 toAlbumInfo 单独带出来）——取不到就抛，由调用方弹错。
+ */
+export const removeFavAlbumFromList = async(card: PlaylistCard): Promise<void> => {
+  const albumId = String(card.albumId ?? '')
+  if (!albumId) throw new Error(t('fav__cancel_failed'))
+  await setAlbumFav({ id: albumId, mid: card.id }, false, { reload: false })
+  const index = favAlbums.findIndex(item => item.id === card.id)
+  if (index > -1) favAlbums.splice(index, 1)
+}
+
+/** 收藏页内**取消收藏歌单**（票 06 E3）。理由同上；收藏歌单卡片的 `id` 就是 tid。 */
+export const removeFavListFromList = async(card: PlaylistCard): Promise<void> => {
+  await setPlaylistFav(card.id, false, { reload: false })
+  const index = favLists.findIndex(item => item.id === card.id)
+  if (index > -1) favLists.splice(index, 1)
 }
 
 // ── 「不喜欢」的云端写入（票 05，best-effort）──────────────────────────────

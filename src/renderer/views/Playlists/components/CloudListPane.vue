@@ -16,7 +16,7 @@
         :page="cloudListSongs.page"
         :limit="cloudListSongs.total || cloudListSongs.limit"
         :total="cloudListSongs.total"
-        :list-id="`cloud_${dirId}`"
+        :list-id="cloudQueueId(dirId)"
         check-api-source
         show-remove-btn
         :remove-label="$t('playlists__cloud_remove_song')"
@@ -39,6 +39,7 @@ import { computed, ref } from '@common/utils/vueTools'
 import { createdLists, cloudListSongs } from '@renderer/store/user/state'
 import { loadCloudListSongs, moreErrorLabelOf, noItemLabelOf, removeSongsFromCloudList } from '@renderer/store/user/action'
 import useOnlinePlay from '@renderer/components/material/OnlineList/usePlay'
+import { cloudQueueId } from '@renderer/utils/queueIds'
 import { dialog } from '@renderer/plugins/Dialog'
 import AddSongsModal from './AddSongsModal.vue'
 
@@ -98,8 +99,9 @@ export default {
     const selectedList = ref<LX.Music.MusicInfoOnline[]>([])
     const { handlePlayMusic } = useOnlinePlay({
       selectedList,
-      // 队列身份（工单 06 方案 B）：云端歌单面板用 dirId，与「歌单详情页」那套 id 区分开
-      props: { list: cloudListSongs.list, listId: `cloud_${props.dirId}` },
+      // 队列身份（工单 06 方案 B）：云端歌单面板用 dirId，与「歌单详情页」那套 id 区分开；
+      // 字面量的家在 @renderer/utils/queueIds（票 06 M3）
+      props: { list: cloudListSongs.list, listId: cloudQueueId(props.dirId) },
       removeAllSelect: () => { selectedList.value = [] },
       emit: () => {},
     })
@@ -128,6 +130,8 @@ export default {
 
     return {
       card,
+      // 模板的 :list-id 与上面 useOnlinePlay 用同一处（票 06 M3）
+      cloudQueueId,
       cloudListSongs,
       isLoading,
       isAdding,

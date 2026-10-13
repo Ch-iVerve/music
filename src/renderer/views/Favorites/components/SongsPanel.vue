@@ -8,7 +8,7 @@
       :page="favSongs.page"
       :limit="favSongs.total || favSongs.limit"
       :total="favSongs.total"
-      :list-id="FAV_LIST_ID"
+      :list-id="FAV_SONGS_QUEUE_ID"
       @play-list="handlePlayFav"
       @load-more="handleLoadMoreFav"
       @unlove="handleUnloveFav"
@@ -25,6 +25,7 @@ import { loadFavSongs, loadMoreFavSongs, moreErrorLabelOf, noItemLabelOf, remove
 import { status } from '@renderer/store/qqAuth/state'
 import { dialog } from '@renderer/plugins/Dialog'
 import useOnlinePlay from '@renderer/components/material/OnlineList/usePlay'
+import { FAV_SONGS_QUEUE_ID } from '@renderer/utils/queueIds'
 import QqFavList from '@renderer/components/common/QqFavList.vue'
 
 /**
@@ -33,18 +34,11 @@ import QqFavList from '@renderer/components/common/QqFavList.vue'
  * 内容就是 QQ 音乐的「我喜欢」（云端 dirId=201）：2026-09-24 起本地收藏取消，
  * 这一块不再并列展示本地 love 列表（它的数据行仍在，只是界面不再有入口）。
  * 「试听列表」更早退场（工单 07 / ADR 0006）——所以本页没有左栏，`?list=` 也不被读取。
- */
-
-/**
- * 这一串歌在播放队列里的身份（ui-polish-followups 工单 09）。
  *
- * 用自造的稳定标识而不是云端 dirId（201）：那是数据层内部常量
- * （`utils/musicSdk/tx/user.js` 的 FAV_DIR_ID，应用层都走 `music.tx.*` 门面），
- * 且「我喜欢」全应用只有这一串、不需要靠 id 区分；标识要的只是「换列表时能判出不是同一串」。
- * ⚠️ 必须与 QqFavList 透传给 material-online-list 的那个值同一个字面量（上面 `:list-id`），
- * 否则「正在播放那一行」与本页两条播放入口会落到两个身份上（同工单 06 的告警）。
+ * 队列身份 `FAV_SONGS_QUEUE_ID`（ui-polish-followups 工单 09 起用自造稳定标识而不用云端
+ * dirId=201——那是数据层内部常量，且「我喜欢」全应用只有这一串）；字面量的家已收到
+ * `utils/queueIds.ts`（票 06 M3），宿主与 `QqFavList` 透传的那个值从同一处取。
  */
-const FAV_LIST_ID = 'fav__songs'
 
 export default {
   name: 'FavoritesSongsPanel',
@@ -77,7 +71,7 @@ export default {
     const { handlePlayMusic: handlePlayCloudMusic } = useOnlinePlay({
       selectedList: selectedCloudList,
       // 队列身份与上面那个 :list-id 是同一个（工单 09）
-      props: { list: favSongs.list, listId: FAV_LIST_ID },
+      props: { list: favSongs.list, listId: FAV_SONGS_QUEUE_ID },
       removeAllSelect: () => { selectedCloudList.value = [] },
       emit: () => {},
     })
@@ -107,7 +101,7 @@ export default {
     }
 
     return {
-      FAV_LIST_ID,
+      FAV_SONGS_QUEUE_ID,
       cloudFavNoItem,
       favSongs,
       moreError,

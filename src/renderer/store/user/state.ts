@@ -34,6 +34,8 @@ export interface PlaylistCard {
   id: string
   /** QQ 歌单目录 id（「我喜欢」= 201）；收藏歌单没有这个字段。 */
   dirId?: string
+  /** 专辑的**数字 albumId**（只有收藏专辑有；`id` 是 mid，取消收藏写接口要数字 id）。 */
+  albumId?: string
   name: string
   img: string
   author: string

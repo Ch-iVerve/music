@@ -7,7 +7,7 @@
       :total="listDetailInfo.total"
       :list="listDetailInfo.list"
       :no-item="listDetailInfo.noItemLabel"
-      :list-id="`board__${boardId}`"
+      :list-id="boardQueueId(boardId)"
       @show-menu="hideListsMenu"
       @play-list="handlePlayList"
       @toggle-page="togglePage"
@@ -17,6 +17,7 @@
 
 <script setup lang="ts">
 import { watch } from '@common/utils/vueTools'
+import { boardQueueId } from '@renderer/utils/queueIds'
 import useList from './useList'
 
 

@@ -2,7 +2,7 @@ import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import FeedTimeline from './components/FeedTimeline.vue'
 import type * as PlayerCore from '@renderer/core/player'
-import { FOLLOW_FEED_TIMELINE_ID } from './useTimelineActions'
+import { FOLLOW_FEED_QUEUE_ID } from '@renderer/utils/queueIds'
 
 /**
  * 时间线行上的交互（dom project）——**接线**用例，算法不在这一层：
@@ -136,7 +136,7 @@ describe('关注动态：时间线的行交互', () => {
 
     await rows[0].trigger('click')
     expect(mocks.playMusicList).toHaveBeenCalledTimes(1)
-    expect(mocks.playMusicList).toHaveBeenCalledWith(FOLLOW_FEED_TIMELINE_ID, [
+    expect(mocks.playMusicList).toHaveBeenCalledWith(FOLLOW_FEED_QUEUE_ID, [
       expect.objectContaining({ id: 'tx_s1' }),
       expect.objectContaining({ id: 'tx_s3' }),
     ], 0)
@@ -144,7 +144,7 @@ describe('关注动态：时间线的行交互', () => {
     // 第三行（队列里的第 2 首）——专辑行不占队列位置
     mocks.playMusicList.mockClear()
     await wrapper.findAll('li')[2].trigger('click')
-    expect(mocks.playMusicList).toHaveBeenCalledWith(FOLLOW_FEED_TIMELINE_ID, [
+    expect(mocks.playMusicList).toHaveBeenCalledWith(FOLLOW_FEED_QUEUE_ID, [
       expect.objectContaining({ id: 'tx_s1' }),
       expect.objectContaining({ id: 'tx_s3' }),
     ], 1)
@@ -223,7 +223,7 @@ describe('关注动态：时间线的行交互', () => {
     expect(actions).toContain('jumpAlbum')
 
     await wrapper.find('.menu-stub [data-action="play"]').trigger('click')
-    expect(mocks.playMusicList).toHaveBeenCalledWith(FOLLOW_FEED_TIMELINE_ID, [
+    expect(mocks.playMusicList).toHaveBeenCalledWith(FOLLOW_FEED_QUEUE_ID, [
       expect.objectContaining({ id: 'tx_s1' }),
       expect.objectContaining({ id: 'tx_s3' }),
     ], 1)

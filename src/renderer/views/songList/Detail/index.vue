@@ -42,7 +42,7 @@
         :total="listDetailInfo.total"
         :list="listDetailInfo.list"
         :no-item="listDetailInfo.noItemLabel"
-        :list-id="`tx__${$route.query.id ?? ''}`"
+        :list-id="songListQueueId(id)"
         @play-list="handlePlayList"
         @toggle-page="togglePage"
       />
@@ -62,6 +62,7 @@ import { getQQCredential } from '@renderer/utils/ipc'
 import { dialog } from '@renderer/plugins/Dialog'
 import { favPlaylistIds } from '@renderer/store/user/state'
 import { loadFavSonglistIds, setPlaylistFav } from '@renderer/store/user/action'
+import { songListQueueId } from '@renderer/utils/queueIds'
 
 // 初始值而已，真正的源由路由 query 决定（下面的 verifyQueryParams 会覆写它）
 const source = ref<LX.OnlineSource>('tx')
@@ -206,6 +207,8 @@ export default {
     return {
       source,
       id,
+      // 播放队列身份（`tx__<tid>`）：与 `action.ts` 的 playSongListDetail 取同一处（票 06 M3）
+      songListQueueId,
       page,
       picUrl,
       listDetailInfo,

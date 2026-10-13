@@ -8,7 +8,7 @@
         :page="1"
         :limit="dislikedSongs.list.length || 1"
         :total="dislikedSongs.list.length"
-        :list-id="LIST_ID"
+        :list-id="DISLIKE_SONGS_QUEUE_ID"
         check-api-source
         show-remove-btn
         :remove-label="$t('favorites__remove_dislike')"
@@ -23,6 +23,7 @@
 import { computed, ref } from '@common/utils/vueTools'
 import { dialog } from '@renderer/plugins/Dialog'
 import useOnlinePlay from '@renderer/components/material/OnlineList/usePlay'
+import { DISLIKE_SONGS_QUEUE_ID } from '@renderer/utils/queueIds'
 import { dislikedSongs, loadDislikedSongs, removeDislikedSong } from './useDislikeSongs'
 
 /**
@@ -37,11 +38,10 @@ import { dislikedSongs, loadDislikedSongs, removeDislikedSong } from './useDisli
  * 见 `core/dislikeList.ts` 的 `addDislikeWithCloud`），本页只管查看与移出。
  */
 
-/**
- * 播放队列的身份（同 `SongsPanel` 的 `FAV_LIST_ID`）：宿主两条播放入口与
- * `material-online-list` 必须用**同一个字面量**，否则「正在播放那一行」认不出来。
+/*
+ * 播放队列的身份（同 `SongsPanel` 的收藏队列）：宿主两条播放入口与 `material-online-list`
+ * 必须用**同一个值**，否则「正在播放那一行」认不出来。字面量的家在 `utils/queueIds.ts`（票 06 M3）。
  */
-const LIST_ID = 'dislike__songs'
 
 export default {
   name: 'FavoritesDislikePanel',
@@ -58,7 +58,7 @@ export default {
     const selectedList = ref<LX.Music.MusicInfoOnline[]>([])
     const { handlePlayMusic } = useOnlinePlay({
       selectedList,
-      props: { list: dislikedSongs.list, listId: LIST_ID },
+      props: { list: dislikedSongs.list, listId: DISLIKE_SONGS_QUEUE_ID },
       removeAllSelect: () => { selectedList.value = [] },
       emit: () => {},
     })
@@ -86,7 +86,7 @@ export default {
     }
 
     return {
-      LIST_ID,
+      DISLIKE_SONGS_QUEUE_ID,
       dislikedSongs,
       noItemLabel,
       handlePlay,

@@ -9,7 +9,7 @@
  * - 本地歌曲表在 `/playlists?id=…`，队列身份恰好等于该 id，路由还能推；
  * - 在线歌曲表的宿主页却千差万别：`/album?mid=…` 的队列是 `album__<mid>`、`/musicHall` 的榜单是
  *   `board__<id>`、`/favorites` 是 `fav__songs`、歌手页是 `singer__songs__<mid>`（各宿主的
- *   `:list-id`），而 `/album` 页根本不在 `/list` 这条路由上。
+ *   `:list-id`，字面量的家都在 `utils/queueIds.ts`），而 `/album` 页根本不在 `/list` 这条路由上。
  * 只有列表组件同时握着「本列表的内容」与「真实容器几何」，所以由它回答，播放栏问一次。
  */
 import { ref } from '@common/utils/vueTools'

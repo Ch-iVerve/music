@@ -245,7 +245,7 @@ export default {
      * ⚠️ 队列身份要认 `tempListMeta.id`，**不是** `playMusicInfo.listId`：在线队列一律灌进临时列表
      * 播放，`playMusicList` 把 `playMusicInfo.listId` 置为 `temp`（`core/player/action.ts`），
      * 真正的「播的是哪个列表」记在 `tempListMeta.id` 上（同「雷达」「歌单详情」的判法）。
-     * 没传 `listId` 的宿主页共用 `online_list__temp` 这个兜底身份，
+     * 没传 `listId` 的宿主页共用 `ONLINE_LIST_FALLBACK_QUEUE_ID`（`utils/queueIds`）这个兜底身份，
      * 光比身份不够，`findPlayingRowIndex` 还会按歌 id 认一遍行。
      */
     const playingRowIndex = computed(() => findPlayingRowIndex({

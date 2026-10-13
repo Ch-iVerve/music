@@ -1,6 +1,7 @@
 import { markRawList, reactive, ref } from '@common/utils/vueTools'
 import { deduplicationList, toNewMusicInfo } from '@renderer/utils'
 import music from '@renderer/utils/musicSdk'
+import { DAILY_30_QUEUE_ID } from '@renderer/utils/queueIds'
 import type { RadarBlock } from './useRadar'
 import { refillPlayQueueForBatch } from './queueBatch'
 
@@ -22,9 +23,6 @@ import { refillPlayQueueForBatch } from './queueBatch'
 
 /** 「每日30首」的歌单 id（见上：长期槽位，内容每天换）。 */
 export const DAILY_30_TID = '4279224903'
-
-/** 这批歌在播放队列里的身份（与雷达的 `radar__recommend` 并列）。 */
-export const DAILY_30_QUEUE_ID = 'daily30__recommend'
 
 /** 一次拿满：接口上限就是 30 首，没有分页语义。 */
 const DAILY_30_NUM = 30

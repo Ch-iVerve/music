@@ -64,7 +64,7 @@
           :limit="songs.limit"
           :total="songs.total"
           :no-item="songs.noItemLabel"
-          :list-id="`album__${$route.query.mid ?? ''}`"
+          :list-id="queueListId"
           check-api-source
           @toggle-page="handleTogglePage"
           @play-list="handlePlayList"
@@ -79,6 +79,7 @@ import { computed, ref, watch, nextTick } from '@common/utils/vueTools'
 import { useRoute, useRouter } from '@common/utils/vueRouter'
 import usePlay from '@renderer/components/material/OnlineList/usePlay'
 import useMusicJump from '@renderer/utils/compositions/useMusicJump'
+import { albumQueueId } from '@renderer/utils/queueIds'
 import useAlbum from './useAlbum'
 import { getQQCredential } from '@renderer/utils/ipc'
 import { dialog } from '@renderer/plugins/Dialog'
@@ -95,12 +96,16 @@ export default {
     // ⚠️ 传歌曲区块对象本身（不是 `{ list: songs.list }`）：usePlay 存的是 props.list 的数组
     // 引用，区块内写回全部走 splice，所以引用一直有效。
     const selectedList = ref<LX.Music.MusicInfoOnline[]>([])
-    // 队列身份（工单 06）：与模板上那个 :list-id 一致。`String(...)` 是为了吃掉
-    // route.query.mid 的 string | string[] 联合类型（免得模板字符串触发类型警告）
-    const queueListId = computed(() => `album__${String(route.query.mid ?? '')}`)
+    // 队列身份（工单 06）：字面量的家在 @renderer/utils/queueIds（票 06 M3）。
+    // `listId` 用 getter 现算：`/album?mid=A → B` 是同组件复用（setup 不重跑），
+    // 快照会让第二张专辑仍用第一张的队列身份（同 Singer/NewSongs 面板的口径）。
+    const queueListId = computed(() => albumQueueId(route.query.mid))
     const { handlePlayMusic } = usePlay({
       selectedList,
-      props: { list: songs.list, listId: queueListId.value },
+      props: {
+        list: songs.list,
+        get listId() { return queueListId.value },
+      },
       removeAllSelect: () => { selectedList.value = [] },
       emit: () => {},
     })
@@ -177,6 +182,7 @@ export default {
       detail,
       songs,
       headerLabel,
+      queueListId,
       handleTogglePage,
       handlePlayList,
       handleBack,

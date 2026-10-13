@@ -22,6 +22,7 @@
 <script lang="ts">
 import { ref } from '@common/utils/vueTools'
 import usePlay from '@renderer/components/material/OnlineList/usePlay'
+import { newSongsQueueId } from '@renderer/utils/queueIds'
 import useNewSongsTab from '../useNewSongsTab'
 
 /** 发现页 → 新歌 Tab：按地区切一批。 */
@@ -39,7 +40,7 @@ export default {
      * 带上 type、并且**现算**（`listId` 用 getter，不取 setup 时的快照），否则换地区后点歌
      * 仍用上一个地区的队列身份（随机/上一首会串到上一个地区）。
      */
-    const queueListId = () => `discover__new_songs__${newSongs.type}`
+    const queueListId = () => newSongsQueueId(newSongs.type)
     /**
      * 交给 usePlay 的「列表 + 队列身份」。
      *

@@ -4,21 +4,23 @@ import { appSetting } from '@renderer/store/setting'
 import { type Ref } from '@common/utils/vueTools'
 import { playMusicList } from '@renderer/core/player'
 import { LIST_IDS } from '@common/constants'
+import { ONLINE_LIST_FALLBACK_QUEUE_ID } from '@renderer/utils/queueIds'
 import { hintUnavailableMusic, isUnavailableMusic } from '@renderer/core/music/unavailable'
 
 /**
- * 播放队列的标识：宿主页传进来的 `listId`，没传时用下面的稳定常量兜底。
+ * 播放队列的标识：宿主页传进来的 `listId`，没传时用兜底常量。
  *
  * 各宿主都传了自己的标识（有真实 id 的用真实 id：专辑 `album__<mid>`、歌单 `tx__<tid>`、
  * 榜单 `board__<id>`、云端歌单 `cloud_<dirId>`、搜索 `search__<关键词>`、歌手 `singer__songs__<mid>`…；
  * 没有真实 id 的自造稳定标识：新歌 `discover__new_songs__<type>`、我的收藏 `fav__songs`、
  * 雷达 `radar__recommend`…，见各宿主的 `:list-id`）——宿主自己的播放入口与
  * `material-online-list` 必须用**同一个值**，否则「正在播放那一行」与播放来自两个身份。
+ * 这些字面量的家已收到 `@renderer/utils/queueIds`（票 06 M3），本文件只留兜底。
  *
  * ⚠️ 兜底值相等不代表内容相等：共用兜底的列表各自内容不同，认「正在播放那一行」时不能只看身份，
  * 见 `@renderer/utils/playingRowLocate` 的 `findPlayingRowIndex`。
  */
-export const getQueueId = (listId?: string) => (listId?.length ? listId : 'online_list__temp')
+export const getQueueId = (listId?: string) => (listId?.length ? listId : ONLINE_LIST_FALLBACK_QUEUE_ID)
 
 export default ({ selectedList, props, removeAllSelect, emit }: {
   selectedList: Ref<LX.Music.MusicInfoOnline[]>

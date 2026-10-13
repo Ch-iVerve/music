@@ -2,9 +2,12 @@
   <div :class="$style.container">
     <div v-show="!props.listInfo.noItemLabel" ref="dom_list_ref" :class="$style.listContent" class="scroll">
       <ul>
-        <li v-for="item in props.listInfo.list" :key="item.id" :class="$style.item" @click="toDetail(item)">
+        <li v-for="(item, index) in props.listInfo.list" :key="item.id" :class="$style.item" @click="toDetail(item)">
           <div :class="$style.image">
             <img :class="$style.img" loading="lazy" decoding="async" :src="item.img">
+            <!-- 封面上的自定义动作位（收藏页的「取消收藏」用）：不传 slot 时渲染为空，
+                 既有调用方（搜索 / 乐馆 / 排行榜）的观感与行为完全不变 -->
+            <slot name="item-action" :item="item" :index="index" />
           </div>
           <div :class="$style.desc">
             <h4>{{ item.name }}</h4>
@@ -136,6 +139,8 @@ defineExpose({
   overflow: hidden;
   opacity: .9;
   aspect-ratio: 1 / 1;
+  // `item-action` 插槽里的绝对定位元素（取消收藏键）以封面为锚点
+  position: relative;
 
   box-shadow: 0 0 2px 0 rgba(0,0,0,.2);
 }

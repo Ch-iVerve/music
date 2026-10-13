@@ -7,7 +7,7 @@
       :total="listInfo.total"
       :list="listInfo.list"
       :no-item="listInfo.noItemLabel"
-      :list-id="`search__${searchText}`"
+      :list-id="searchQueueId(searchText)"
       check-api-source
       @toggle-page="handleTogglePage"
       @play-list="handlePlayList"
@@ -18,6 +18,7 @@
 <script setup lang="ts">
 import { watch } from '@common/utils/vueTools'
 import { searchText } from '@renderer/store/search/state'
+import { searchQueueId } from '@renderer/utils/queueIds'
 import { useRouter, useRoute } from '@common/utils/vueRouter'
 import useList, { type SearchSource } from './useList'
 

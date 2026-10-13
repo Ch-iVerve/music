@@ -8,6 +8,7 @@ import useMusicActions from '@renderer/components/material/OnlineList/useMusicAc
 import useMusicAdd from '@renderer/components/material/OnlineList/useMusicAdd'
 import useMusicDownload from '@renderer/components/material/OnlineList/useMusicDownload'
 import useMusicJump from '@renderer/utils/compositions/useMusicJump'
+import { FOLLOW_FEED_ALBUM_ID_PREFIX, FOLLOW_FEED_QUEUE_ID } from '@renderer/utils/queueIds'
 
 /**
  * 时间线行上的交互（关注动态）：点歌行播放、点歌手名 / 专辑名跳转、行右键菜单。
@@ -16,7 +17,8 @@ import useMusicJump from '@renderer/utils/compositions/useMusicJump'
  * 只有两种行的列表上」，不是重写一套播放 / 菜单）：
  * - 播放：`material/OnlineList/usePlay`（「点行即播 + 队列身份」的正典）；队列 = **本页时间线里
  *   全部歌曲行**（按当前顺序），身份 `follow_feed__timeline`（自造稳定标识，同 `fav__songs`
- *   / `radar__recommend` 的做法——本页没有真实列表 id）。
+ *   / `radar__recommend` 的做法——本页没有真实列表 id；字面量的家已收到
+ *   `@renderer/utils/queueIds`，票 06 M3）。
  * - 菜单：`material/OnlineList/useMenu`（在线歌曲行的整套菜单：播放 / 下载 / 稍后播放 / 搜索 /
  *   我喜欢 / 添加到… / 跳转专辑 / 跳转歌手 / 复制链接 / 在 QQ 音乐打开 / 歌曲详情 / 不喜欢）。
  *   这几个 **deep import** 没有别的入口：仓库里它们就是「在线歌曲行的这一套」，
@@ -32,11 +34,6 @@ import useMusicJump from '@renderer/utils/compositions/useMusicJump'
  *      每首歌单独播，队列 = 专辑内那批歌（载荷也在 `item.music`，是数组）；旧的专辑行
  *      （载荷缺失）退回「点专辑名进专辑页」。
  */
-
-/** 播放队列的身份（`usePlay` 的 `listId`）；同一页只有一个队列，所以是常量 */
-export const FOLLOW_FEED_TIMELINE_ID = 'follow_feed__timeline'
-/** 专辑展开区的播放队列身份前缀（每张专辑一个队列：`follow_feed__album_<itemId>`） */
-export const FOLLOW_FEED_ALBUM_ID_PREFIX = 'follow_feed__album_'
 
 interface TimelineActionsProps {
   items: LX.FollowFeed.Item[]
@@ -88,7 +85,7 @@ export const useTimelineActions = (props: TimelineActionsProps) => {
     get list() {
       return songEntries.value.map(entry => entry.music)
     },
-    listId: FOLLOW_FEED_TIMELINE_ID,
+    listId: FOLLOW_FEED_QUEUE_ID,
   }
 
   // ── 播放（`usePlay` 那条链：点行即播 + 队列身份 + 失效曲拦截）──────────────────

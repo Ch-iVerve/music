@@ -4,7 +4,11 @@
     <p v-else-if="!favAlbums.length" :class="$style.tip">{{ $t('no_item') }}</p>
     <ul :class="$style.cards">
       <li v-for="item in favAlbums" :key="item.id" :class="$style.card" @click="toAlbum(item)">
-        <img :class="$style.cardImg" loading="lazy" decoding="async" :src="item.img" alt="">
+        <div :class="$style.cover">
+          <img :class="$style.cardImg" loading="lazy" decoding="async" :src="item.img" alt="">
+          <!-- 卡片上直接取消收藏（票 06 E3）：二次确认后写云端、就地移卡 -->
+          <unfav-card-button @click="handleUnfav(item)" />
+        </div>
         <h4 :class="$style.cardName" :title="item.name">{{ item.name }}</h4>
         <p :class="$style.cardMeta" :title="item.author">{{ item.author }}</p>
       </li>
@@ -20,14 +24,21 @@
 <script lang="ts">
 import { computed, watch } from '@common/utils/vueTools'
 import { useRouter } from '@common/utils/vueRouter'
-import { favAlbums, labels, pagers } from '@renderer/store/user/state'
-import { initUserCenter, loadMoreFavAlbums, moreErrorLabelOf } from '@renderer/store/user/action'
+import { dialog } from '@renderer/plugins/Dialog'
+import { favAlbums, labels, pagers, type PlaylistCard } from '@renderer/store/user/state'
+import { initUserCenter, loadMoreFavAlbums, moreErrorLabelOf, removeFavAlbumFromList } from '@renderer/store/user/action'
 import { status } from '@renderer/store/qqAuth/state'
+import UnfavCardButton from '@renderer/components/common/UnfavCardButton.vue'
 
-/** 我的收藏 → 专辑：QQ 账号收藏的专辑（只读接口，写能力见工单 08）。 */
+/** 我的收藏 → 专辑：QQ 账号收藏的专辑（写能力=卡片上直接取消收藏，票 06 E3）。 */
 export default {
   name: 'FavoritesAlbumsPanel',
+  components: {
+    UnfavCardButton,
+  },
   setup() {
+    const t = (key: string, params?: any) => window.i18n.t(key as any, params)
+
     const router = useRouter()
     void initUserCenter()
 
@@ -42,12 +53,31 @@ export default {
       void router.push({ path: '/album', query: { mid: item.id } })
     }
 
+    /**
+     * 卡片上的「取消收藏」（票 06 E3）：二次确认（`dialog.confirm` 走 material-modal）
+     * → 写云端 + 就地移卡（`removeFavAlbumFromList`，不整页重拉）。
+     * 失败弹错不静默——取消收藏是用户主动动作（同专辑页的 handleToggleFav）。
+     */
+    const handleUnfav = async(item: PlaylistCard) => {
+      const confirm = await dialog.confirm({
+        message: t('fav__cancel_confirm', { name: item.name }),
+        confirmButtonText: t('fav__cancel'),
+      })
+      if (!confirm) return
+      try {
+        await removeFavAlbumFromList(item)
+      } catch (err: any) {
+        void dialog({ message: err?.message || String(err), type: 'error' })
+      }
+    }
+
     return {
       favAlbums,
       labels,
       pagers,
       moreError,
       toAlbum,
+      handleUnfav,
       loadMoreFavAlbums,
     }
   },
@@ -81,6 +111,14 @@ export default {
   &:hover .cardImg {
     transform: scale(1.04);
   }
+}
+// 封面的定位壳：取消收藏键（绝对定位）以它为锚点；overflow 裁掉 hover 缩放溢出的边
+.cover {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  border-radius: @radius-border;
+  overflow: hidden;
 }
 .cardImg {
   width: 132px;

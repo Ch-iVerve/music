@@ -122,6 +122,7 @@
   "fav__add": "收藏到 QQ",
   "fav__add_failed": "收藏失敗，請稍後再試",
   "fav__cancel": "取消 QQ 收藏",
+  "fav__cancel_confirm": "要把「{name}」從 QQ 收藏裡移出嗎？",
   "fav__cancel_failed": "取消收藏失敗，請稍後再試",
   "favorites": "我的收藏",
   "favorites__tab_albums": "專輯",

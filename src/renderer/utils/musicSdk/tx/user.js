@@ -170,9 +170,12 @@ const toPlaylistInfo = raw => ({
   source: 'tx',
 })
 
-/** 收藏专辑 → 同一个卡片形状；id 用专辑 mid（点开走专辑页）。 */
+/** 收藏专辑 → 同一个卡片形状；id 用专辑 mid（点开走专辑页），另有数字 id 供写接口用。
+ *  `albumId` 是原始行的**数字 albumId**（实测 `v_list` 每行都带 `id` 为 int）：取消收藏
+ *  （`AlbumFavWrite`）只要数字 id，带上它就不必再打一次专辑详情。 */
 const toAlbumInfo = raw => ({
   id: String(raw.mid ?? ''),
+  albumId: String(raw.id ?? ''),
   name: raw.name ?? '',
   img: raw.logo ?? '',
   author: singerNames(raw.v_singer),

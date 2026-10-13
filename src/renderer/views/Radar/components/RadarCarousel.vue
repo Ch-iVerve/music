@@ -133,8 +133,8 @@ import useMusicDownload from '@renderer/components/material/OnlineList/useMusicD
 import useMenu from '@renderer/components/material/OnlineList/useMenu'
 import { assertApiSupport } from '@renderer/store/utils'
 import useFavSong, { favIconOf } from '@renderer/utils/compositions/useFavSong'
-import useRadar, { RADAR_QUEUE_ID, type RadarBlock } from '../useRadar'
-import { DAILY_30_QUEUE_ID } from '../useDaily30'
+import useRadar, { type RadarBlock } from '../useRadar'
+import { DAILY_30_QUEUE_ID, RADAR_QUEUE_ID } from '@renderer/utils/queueIds'
 import { DRAG_SLOP, pushSample, resolveSwipeStep, sampleVelocity, type SwipeSample } from '../swipe'
 import { FOLLOW_STAY, resolveFollowCursor } from '../followPlaying'
 

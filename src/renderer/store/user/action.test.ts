@@ -3,7 +3,7 @@ import {
   cloudListSongs, createdLists, favAlbumIds, favAlbums, favLists, favPlaylistIds, favSongIds, favSongIdsLoaded, favSongs, followSingers, isInited, labels, musicGene, pagers, profile, vip,
 } from './state'
 import {
-  addDislikedSongToCloud, addFavSongToCloud, canFavSongInCloud, createCloudList, isFavSongInCloud, loadMoreFavAlbums, loadMoreFavLists, loadMoreFollowSingers, loadMoreFavSongs, reloadCreatedLists, removeCloudList, removeFavSongFromCloud, resetUserCenter, toggleFavSongToCloud,
+  addDislikedSongToCloud, addFavSongToCloud, canFavSongInCloud, createCloudList, isFavSongInCloud, loadMoreFavAlbums, loadMoreFavLists, loadMoreFollowSingers, loadMoreFavSongs, reloadCreatedLists, removeCloudList, removeFavAlbumFromList, removeFavListFromList, removeFavSongFromCloud, resetUserCenter, toggleFavSongToCloud,
 } from './action'
 
 /**
@@ -19,7 +19,7 @@ import {
  * 只把最外层 SDK 换成桩，store 与状态写回都是真的。
  */
 
-const { likeSong, unlikeSong, getFavSongIds, getFavSonglist, getFavAlbum, getFollowSingers, getFavSong, getCreatedSonglist, createList, removeList, addDislikedSongs } = vi.hoisted(() => ({
+const { likeSong, unlikeSong, getFavSongIds, getFavSonglist, getFavAlbum, getFollowSingers, getFavSong, getCreatedSonglist, createList, removeList, addDislikedSongs, setFavAlbum, setFavPlaylist } = vi.hoisted(() => ({
   likeSong: vi.fn(),
   unlikeSong: vi.fn(),
   getFavSongIds: vi.fn(),
@@ -31,14 +31,17 @@ const { likeSong, unlikeSong, getFavSongIds, getFavSonglist, getFavAlbum, getFol
   createList: vi.fn(),
   removeList: vi.fn(),
   addDislikedSongs: vi.fn(),
+  setFavAlbum: vi.fn(),
+  setFavPlaylist: vi.fn(),
 }))
 
 vi.mock('@renderer/utils/musicSdk', () => ({
   default: {
     tx: {
-      songList: { likeSong, unlikeSong, createList, removeList },
+      songList: { likeSong, unlikeSong, createList, removeList, setFavPlaylist },
       user: { getFavSongIds, getFavSonglist, getFavAlbum, getFollowSingers, getFavSong, getCreatedSonglist },
       dislike: { addDislikedSongs },
+      album: { setFavAlbum },
     },
   },
 }))
@@ -349,6 +352,63 @@ describe('store/user/action 的 addDislikedSongToCloud（票 05）', () => {
 
     expect(log).not.toHaveBeenCalled()
     log.mockRestore()
+  })
+})
+
+/**
+ * 收藏页卡片上的**取消收藏**（票 06 E3）。
+ *
+ * 与详情页那套写法的差别在「列表怎么收尾」：收藏页要**就地移卡 + 不整页重拉**
+ * （重拉会把用户「加载更多」翻出来的页丢掉——收藏专辑动辄几百条），所以这里钉住
+ * `getFavAlbum` / `getFavSonglist` 没被调用。写接口要的 id 也不同：专辑卡片手里
+ * 只有 mid（`id`）与数字 `albumId`，写接口要后者。
+ */
+describe('store/user/action 的收藏页取消收藏（票 06 E3）', () => {
+  const albumCard = { id: 'album-mid-1', albumId: '12345', name: '专辑甲', img: '', author: '', desc: null, source: 'tx' } as any
+  const listCard = { id: '987654321', name: '歌单甲', img: '', author: '', desc: null, source: 'tx' } as any
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    favAlbums.splice(0, favAlbums.length, albumCard, { ...albumCard, id: 'album-mid-2', albumId: '222' })
+    favLists.splice(0, favLists.length, listCard, { ...listCard, id: '111' })
+    favAlbumIds.splice(0, favAlbumIds.length, 'album-mid-1', 'album-mid-2')
+    favPlaylistIds.splice(0, favPlaylistIds.length, '987654321', '111')
+    setFavAlbum.mockResolvedValue(true)
+    setFavPlaylist.mockResolvedValue(true)
+  })
+
+  it('专辑：写的是数字 albumId；就地移卡、收藏态同步、**不重拉列表**', async() => {
+    await removeFavAlbumFromList(albumCard)
+
+    expect(setFavAlbum).toHaveBeenCalledWith('12345', false)
+    expect(favAlbums.map(item => item.id)).toEqual(['album-mid-2'])
+    expect(favAlbumIds).toEqual(['album-mid-2'])
+    expect(getFavAlbum).not.toHaveBeenCalled()
+  })
+
+  it('歌单：写的是 tid；就地移卡、不重拉列表', async() => {
+    await removeFavListFromList(listCard)
+
+    expect(setFavPlaylist).toHaveBeenCalledWith('987654321', false)
+    expect(favLists.map(item => item.id)).toEqual(['111'])
+    expect(favPlaylistIds).toEqual(['111'])
+    expect(getFavSonglist).not.toHaveBeenCalled()
+  })
+
+  it('被服务端拒绝 → 抛给调用方（面板弹错），卡片与收藏态都不动', async() => {
+    setFavAlbum.mockResolvedValue(false)
+
+    await expect(removeFavAlbumFromList(albumCard)).rejects.toThrow()
+    expect(favAlbums.map(item => item.id)).toEqual(['album-mid-1', 'album-mid-2'])
+    expect(favAlbumIds).toEqual(['album-mid-1', 'album-mid-2'])
+  })
+
+  it('专辑卡片缺数字 albumId → 不发请求直接抛（不能拿 mid 当 id 送）', async() => {
+    const broken = { ...albumCard, albumId: '' }
+
+    await expect(removeFavAlbumFromList(broken)).rejects.toThrow()
+    expect(setFavAlbum).not.toHaveBeenCalled()
+    expect(favAlbums).toHaveLength(2)
   })
 })
 

@@ -5,14 +5,16 @@ import { getListDetail, getListDetailAll } from '@renderer/store/songList/action
 import { createUserList, setTempList } from '@renderer/store/list/action'
 import { playList } from '@renderer/core/player/action'
 import { LIST_IDS } from '@common/constants'
+import { songListQueueId } from '@renderer/utils/queueIds'
 import { toMD5 } from '@renderer/utils'
 
-const getListId = (id: string, source: LX.OnlineSource) => `${source}__${id}`
+/** 歌单的队列身份（`tx__<tid>`，票 06 M3 起与模板的 `:list-id` 同取 queueIds）。 */
+const getListId = (id: string) => songListQueueId(id)
 
 export const addSongListDetail = async(id: string, source: LX.OnlineSource, name?: string) => {
   // console.log(this.listDetail.info)
   // if (!this.listDetail.info.name) return
-  const listId = getListId(id, source)
+  const listId = getListId(id)
   const targetList = userLists.find(l => l.sourceListId == listId)
   if (targetList) {
     const confirm = await dialog.confirm({
@@ -38,7 +40,7 @@ export const addSongListDetail = async(id: string, source: LX.OnlineSource, name
 export const playSongListDetail = async(id: string, source: LX.OnlineSource, list?: LX.Music.MusicInfoOnline[], index: number = 0) => {
   let isPlayingList = false
   // console.log(list)
-  const listId = getListId(id, source)
+  const listId = getListId(id)
   if (!list?.length) list = (await getListDetail(id, source, 1)).list
   if (list?.length) {
     await setTempList(listId, [...list])

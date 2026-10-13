@@ -5,9 +5,15 @@ import { getListDetail, getListDetailAll } from '@renderer/store/leaderboard/act
 import { createUserList, setTempList } from '@renderer/store/list/action'
 import { playList } from '@renderer/core/player/action'
 import { LIST_IDS } from '@common/constants'
+import { boardQueueId } from '@renderer/utils/queueIds'
 import { toMD5 } from '@renderer/utils'
 
-const getListId = (id: string) => `board__${id}`
+/**
+ * 榜单身份（`board__<id>`）：既当播放队列身份（`MusicList/index.vue` 的 `:list-id`），
+ * 也当「复制到我的歌单」的 `sourceListId`（`store/list/syncSourceList` 会反解它）。
+ * 字面量的家在 `@renderer/utils/queueIds`（票 06 M3）——两处用途必须同源。
+ */
+const getListId = (id: string) => boardQueueId(id)
 
 export const addSongListDetail = async(id: string, name: string, source: LX.OnlineSource) => {
   // console.log(this.listDetail.info)

@@ -24,6 +24,7 @@
 <script lang="ts">
 import { ref, watch } from '@common/utils/vueTools'
 import usePlay from '@renderer/components/material/OnlineList/usePlay'
+import { singerSongsQueueId } from '@renderer/utils/queueIds'
 import useSinger from '../useSinger'
 
 /**
@@ -54,7 +55,7 @@ export default {
      * 面板不按 mid 重建（`Singer/index.vue` 的 `songs-panel` 没有 key，换歌手只换 prop），
      * setup 时快照一个 id 会让第二个歌手仍用第一个歌手的队列身份。
      */
-    const queueListId = () => `singer__songs__${props.mid}`
+    const queueListId = () => singerSongsQueueId(props.mid)
     /**
      * 交给 usePlay 的「列表 + 队列身份」。
      *
