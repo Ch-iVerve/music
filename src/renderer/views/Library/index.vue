@@ -7,6 +7,7 @@
 </template>
 
 <script lang="ts">
+import { getDownloadList } from '@renderer/store/download/action'
 import LocalLibraryView from './components/LocalLibraryView.vue'
 import DownloadTaskBar from './components/DownloadTaskBar.vue'
 
@@ -24,6 +25,13 @@ export default {
   components: {
     LocalLibraryView,
     DownloadTaskBar,
+  },
+  setup() {
+    // 进页把**上一会话留下的未完成任务**拉进 store（沿用「进页面才拉下载列表」的老口径）。
+    // 为什么要挂在本页而不是任务条里：任务条 `v-if` 没任务就不渲染，它自己的钩子永远等不到
+    // 第一次加载——重启后暂停中的任务会既看不见也续不上（下载页删除后 `getDownloadList`
+    // 一度没有调用方，票 07 复核补回）。
+    void getDownloadList()
   },
 }
 </script>
