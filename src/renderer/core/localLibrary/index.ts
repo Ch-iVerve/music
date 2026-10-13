@@ -122,8 +122,8 @@ export const importLocalFilesToList = async(listId: string, filePaths: string[])
  *
  * 复用 `ingestLocalFiles` 同款管线（哈希 → 已在库则跳过 → 解析 tag/封面/歌词 → 复制进 media/），
  * 落库行记 `origin='download'`；成功（新入库或命中已有哈希）后删除暂存原件——下载文件是应用产出物，
- * 非用户原始文件，不受「原始文件只读」约束。返回是否已入库；失败由调用方兜（文件留在暂存目录，
- * 重扫描会把它当孤儿列出，可收编 / 可清理）。
+ * 非用户原始文件，不受「原始文件只读」约束。返回是否已入库；失败由调用方兜（文件留在 `.tmp`
+ * 暂存目录里，库里不出现该条——`.tmp` 是应用内部暂存区，不是库素材，扫描/对账都不会收编它）。
  */
 export const ingestDownloadedFile = async(filePath: string): Promise<boolean> => {
   const mediaDir = (await getEnvParams()).mediaDir
@@ -168,7 +168,14 @@ export const importFolderToNewList = async(folderPath: string): Promise<void> =>
   await importLocalFilesToList(listId, files)
 }
 
-/** 重扫描对账（票 07/14）：媒体目录 vs 曲目库的差异报告 */
+/**
+ * 重扫描对账（票 07/14）：媒体目录 vs 曲目库的差异报告。
+ *
+ * ⚠️ 2026-10-13 起**没有 UI 入口**（用户口径：不要手动重扫描，页面自己刷新——库视图改为监听
+ * `myListUpdate` 自动重拉）。本函数与 `adoptOrphanFiles` 保留为能力：失效核对早已是自动的
+ * （`availability.ts` 的 `checkMissingPaths`），孤儿收编若将来要做「后台自动对账」还要用同一套判据。
+ * worker 侧已修过 `.tmp` 暂存目录被误列成孤儿的 bug（扫描只收普通文件、跳过隐藏名）。
+ */
 export const reconcileLibrary = async(): Promise<LibraryReconcileReport> => {
   const mediaDir = (await getEnvParams()).mediaDir
   const tracks = await localLibraryGetAll()
@@ -178,7 +185,8 @@ export const reconcileLibrary = async(): Promise<LibraryReconcileReport> => {
   })
 }
 
-/** 收编孤儿文件：走同一托管管线（已在媒体目录内的不再自拷），仅入库、不进歌单 */
+/** 收编孤儿文件：走同一托管管线（已在媒体目录内的不再自拷），仅入库、不进歌单。
+ *  当前无 UI 调用（理由见 `reconcileLibrary` 的说明），保留为能力。 */
 export const adoptOrphanFiles = async(paths: string[]): Promise<number> => {
   if (!paths.length) return 0
   const mediaDir = (await getEnvParams()).mediaDir

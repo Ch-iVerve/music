@@ -96,15 +96,22 @@ export const reconcileLibrary = async(options: {
   tracks: Array<{ id: string, ext: string, size: number, name: string }>
 }): Promise<LibraryReconcileReport> => {
   const { mediaDir, tracks } = options
-  let diskFiles: string[] = []
+  // ⚠️ 必须 `withFileTypes` 且只收**普通文件、且非隐藏名**：媒体目录里有应用自己的下载暂存目录
+  // `<mediaDir>/.tmp`（票 03），不带类型过滤会把它列成「孤儿」——收编会对目录做哈希（必失败）、
+  // 删除是 `fs.rm` 不带 recursive（EISDIR，被 catch 吞成「删不掉」），2026-10-13 真机咬到。
+  // 托管副本的命名恒为 `<内容哈希>.<扩展名>`（不带点开头），所以隐藏名一律不是库素材。
+  let diskEntries: Array<{ name: string, isFile: () => boolean }> = []
   try {
-    diskFiles = await fs.readdir(mediaDir)
+    diskEntries = await fs.readdir(mediaDir, { withFileTypes: true })
   } catch {}
-  const diskSet = new Set(diskFiles)
+  const diskNames = diskEntries
+    .filter(entry => entry.isFile() && !entry.name.startsWith('.'))
+    .map(entry => entry.name)
+  const diskSet = new Set(diskNames)
   const trackByFileName = new Map(tracks.map(track => [`${track.id}.${track.ext}`, track]))
 
   const orphans: string[] = []
-  for (const name of diskFiles) {
+  for (const name of diskNames) {
     if (!trackByFileName.has(name)) orphans.push(path.join(mediaDir, name))
   }
 

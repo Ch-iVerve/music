@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
-import { ingestLocalFiles } from './library'
+import { ingestLocalFiles, reconcileLibrary } from './library'
 
 /**
  * 托管导入管线的行为测试（票 02 的主 seam，spec Testing Decisions）。
@@ -145,5 +145,46 @@ describe('托管导入管线（ingestLocalFiles）', () => {
     expect(result.cancelled).toBe(true)
     expect(result.tracks.length).toBe(1)
     expect(fs.readdirSync(mediaDir).length).toBe(1)
+  })
+})
+
+/**
+ * 重扫描对账（票 07）的扫描边界——2026-10-13 真机反馈：下载暂存目录 `<mediaDir>/.tmp`
+ * 被列成「孤儿文件」，而两个处置动作对它都无效（收编对目录哈希必失败、`fs.rm` 不带 recursive
+ * 抛 EISDIR 被吞成"删不掉"）。判据：目录与隐藏名一律不算库素材，普通文件照旧照单。
+ */
+describe('重扫描对账（reconcileLibrary）的扫描边界', () => {
+  it('目录（含 .tmp 暂存目录）与隐藏文件不进孤儿；普通文件照旧列出', async() => {
+    const mediaDir = newDir('media-scan')
+    fs.writeFileSync(path.join(mediaDir, 'aaa.mp3'), 'orphan')
+    fs.writeFileSync(path.join(mediaDir, '.DS_Store'), 'hidden')
+    fs.mkdirSync(path.join(mediaDir, '.tmp'))
+    fs.writeFileSync(path.join(mediaDir, '.tmp', 'in-flight.lxmtemp'), 'partial')
+    fs.mkdirSync(path.join(mediaDir, 'subdir'))
+
+    const report = await reconcileLibrary({ mediaDir, tracks: [] })
+
+    expect(report.orphans).toEqual([path.join(mediaDir, 'aaa.mp3')])
+  })
+
+  it('库里有记录的文件仍按 在/丢失/大小不符 三分类，暂存目录不干扰判定', async() => {
+    const mediaDir = newDir('media-scan2')
+    fs.writeFileSync(path.join(mediaDir, 'hash1.mp3'), 'ok')
+    fs.writeFileSync(path.join(mediaDir, 'hash2.mp3'), 'old')
+    fs.mkdirSync(path.join(mediaDir, '.tmp'))
+    fs.writeFileSync(path.join(mediaDir, '.tmp', 'x.lxmtemp'), 'partial')
+
+    const report = await reconcileLibrary({
+      mediaDir,
+      tracks: [
+        { id: 'hash1', ext: 'mp3', size: fs.statSync(path.join(mediaDir, 'hash1.mp3')).size, name: '在' },
+        { id: 'hash2', ext: 'mp3', size: 999, name: '尺寸变了' },
+        { id: 'hash3', ext: 'flac', size: 1, name: '文件没了' },
+      ],
+    })
+
+    expect(report.orphans).toEqual([])
+    expect(report.missing).toEqual([path.join(mediaDir, 'hash3.flac')])
+    expect(report.mismatched).toEqual([path.join(mediaDir, 'hash2.mp3')])
   })
 })

@@ -19,8 +19,6 @@
         >{{ capsule.label }}</button>
       </div>
       <span :class="$style.count">{{ $t('playlists__library_count', { num: tracks.length }) }}</span>
-      <!-- 与「导入文件夹」同高（33px）：描边=次级、实底=主级；不再用 min 小钮（一行里大小参差） -->
-      <base-btn outline :class="$style.ghostBtn" :disabled="importing" @click="handleRescan">{{ $t('playlists__rescan') }}</base-btn>
       <base-btn :class="$style.importBtn" :disabled="importing" @click="handleImportFolder">{{ $t('playlists__import_folder') }}</base-btn>
     </div>
 
@@ -92,8 +90,6 @@
     <library-export-modal :show="showExportWizard" :list-info="wizardListInfo" :musics="wizardMusics" @close="showExportWizard = false" />
     <library-edit-modal :show="showEdit" :track="editTrack" @close="showEdit = false" @saved="load" @edit-lyrics="handleOpenLyric" />
     <library-lyric-modal :show="showLyric" :track="lyricTrack" @close="showLyric = false" @saved="load" />
-
-    <library-rescan-modal :show="showRescan" :report="rescanReport" @close="showRescan = false" @changed="handleRescanChanged" />
   </div>
 </template>
 
@@ -103,7 +99,6 @@ import { useRouter } from '@common/utils/vueRouter'
 import { clipboardWriteText } from '@common/utils/electron'
 import VirtualizedList from '@renderer/components/base/VirtualizedList.vue'
 import LibraryCover from './LibraryCover.vue'
-import LibraryRescanModal from './LibraryRescanModal.vue'
 import LibraryEditModal from './LibraryEditModal.vue'
 import LibraryLyricModal from './LibraryLyricModal.vue'
 import LibraryBatchEditModal from '@renderer/components/common/library/LibraryBatchEditModal.vue'
@@ -118,7 +113,6 @@ import {
   buildLocalEntry,
   deleteOrphanFiles,
   importFolderToNewList,
-  reconcileLibrary,
   useLocalImportState,
 } from '@renderer/core/localLibrary'
 import { revokeCoverUrls } from '@renderer/core/localLibrary/covers'
@@ -129,7 +123,9 @@ import { playMusicList } from '@renderer/core/player/action'
 /**
  * 「全部本地音乐」视图（票 03 立骨架；票 05 加搜索与分组胶囊）。
  *
- * - 数据 = 库全量（`localLibraryGetAll`）；导入完成（弹窗汇总出现）后自动重拉。
+ * - 数据 = 库全量（`localLibraryGetAll`）；导入完成（弹窗汇总出现）后自动重拉，
+ *   任一处库变化（`myListUpdate` 带 `LOCAL_LIBRARY`：下载完成收编入库、别处编辑/移除）也自动重拉
+ *   （2026-10-13 起去掉手动「重扫描」入口——库内容要自己变，不靠用户点）。
  * - 搜索：歌名/歌手/专辑子串过滤；分组胶囊：不分组 + 全量 tag 字段（spec D17），
  *   纯函数在 `core/localLibrary/grouping`（有单测），本组件只持三个状态：query / dim / 折叠组。
  * - 行 = 扁平序列（组头行 + 曲目行，统一行高交给虚拟列表）；双击曲目行在**当前可见顺序**里播放；
@@ -142,7 +138,6 @@ export default {
   components: {
     VirtualizedList,
     LibraryCover,
-    LibraryRescanModal,
     LibraryEditModal,
     LibraryLyricModal,
     LibraryBatchEditModal,
@@ -232,7 +227,7 @@ export default {
       tracks.value = await localLibraryGetAll()
       // 失效核对（票 06）：打开库即异步核对，标记是响应式的（scoped slot 追踪），丢了会在行上出现徽标
       void checkAvailability(tracks.value.map(track => `${mediaDir.value}/${track.id}.${track.ext}`))
-      // 库可能已变（重扫/导入/移除都走这里），旧选择里有失效键，直接清空最稳
+      // 库可能已变（导入/编辑/移除/下载入库都走这里），旧选择里有失效键，直接清空最稳
       clearSelection()
     }
     onMounted(async() => {
@@ -244,6 +239,8 @@ export default {
       if (summary) void load()
     })
     onBeforeUnmount(() => {
+      // 自动刷新的监听要摘掉（本组件在 tab/路由切换时重建，不摘会累积回调）
+      window.app_event.off('myListUpdate', handleMyListUpdate)
       revokeCoverUrls()
     })
 
@@ -256,17 +253,13 @@ export default {
       await importFolderToNewList(filePaths[0])
     }
 
-    // 重扫描对账（票 07）：按钮 → 报告弹窗；弹窗内处置完成（changed）→ 重拉库 + 刷新报告
-    const showRescan = ref(false)
-    const rescanReport = ref(null)
-    const handleRescan = async() => {
-      showRescan.value = true
-      rescanReport.value = await reconcileLibrary()
+    // 页面自动刷新（2026-10-13 用户口径，取代原「重扫描对账」手动作业）：库内容在任何入口变化
+    // （下载完成收编入库、别处导入 / 批量编辑 / 移除）都会广播 `myListUpdate`，带 LOCAL_LIBRARY
+    // 的那条就是本页该重拉的信号——用户不需要任何「重扫」动作。监听只在挂载期间存在。
+    const handleMyListUpdate = (ids) => {
+      if (Array.isArray(ids) && ids.includes(LIST_IDS.LOCAL_LIBRARY)) void load()
     }
-    const handleRescanChanged = async() => {
-      await load()
-      rescanReport.value = await reconcileLibrary()
-    }
+    window.app_event.on('myListUpdate', handleMyListUpdate)
 
     // 行右键菜单：与普通歌单表（ListMusicTable）同一套歌曲动作，按「托管本地源」裁剪——
     // 下载 / 我喜欢 / 跳转分享这类只对在线源有意义的项不出现，而不是摆灰键（真机反馈：菜单内容不对）
@@ -451,8 +444,6 @@ export default {
       importing,
       isMediaPathMissing,
       handleEdit,
-      showRescan,
-      rescanReport,
       isShowItemMenu,
       itemMenuLocation,
       itemMenus,
@@ -480,8 +471,6 @@ export default {
       handleDimChange,
       handleToggleCollapse,
       handleImportFolder,
-      handleRescan,
-      handleRescanChanged,
     }
   },
 }
@@ -514,22 +503,11 @@ export default {
   font-variant-numeric: tabular-nums;
 }
 
-// 次级钮：描边透明底，高度与主钮（base-btn 默认 33px）对齐。
-// 双写类名抬特异性：压过 baseBtn 模块里的 border:none / padding（同特异性时看打包顺序，不稳）
 .row {
   // 选中行（mod/shift 多选）与 ListMusicTable 的 active 同 token
   &.selected {
     background-color: var(--color-primary-background-active);
   }
-}
-
-.ghostBtn.ghostBtn {
-  box-sizing: border-box;
-  height: 33px;
-  padding: 0 14px;
-  border: 1px solid var(--color-primary-light-500);
-  font-size: 12.8px;
-  color: var(--color-font-label);
 }
 
 .search {
