@@ -430,7 +430,7 @@
   "playlists__local_empty": "로컬 플레이리스트가 없습니다. 왼쪽 아래 \"+ 새 플레이리스트\"로 만드세요",
   "playlists__local_group": "로컬 목록",
   "playlists__tab_cloud": "온라인",
-  "playlists__tab_local": "라이브러리",
+  "playlists__tab_local": "로컬",
   "playlists__local_library": "전체 로컬 음악",
   "playlists__import_folder": "폴더 가져오기…",
   "playlists__library_count": "{num}곡",

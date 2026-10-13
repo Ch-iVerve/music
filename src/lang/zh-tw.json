@@ -430,7 +430,7 @@
   "playlists__local_empty": "還沒有自建歌單，點左下角「＋ 新建歌單」建立",
   "playlists__local_group": "本地自建清單",
   "playlists__tab_cloud": "線上",
-  "playlists__tab_local": "庫",
+  "playlists__tab_local": "本地",
   "playlists__local_library": "全部本地音樂",
   "playlists__import_folder": "匯入資料夾…",
   "playlists__library_count": "共 {num} 首",

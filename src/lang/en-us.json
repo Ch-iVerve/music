@@ -430,7 +430,7 @@
   "playlists__local_empty": "No local playlists yet — use \"+ New Playlist\" at the bottom left",
   "playlists__local_group": "Local lists",
   "playlists__tab_cloud": "Online",
-  "playlists__tab_local": "Library",
+  "playlists__tab_local": "Local",
   "playlists__local_library": "All Local Music",
   "playlists__import_folder": "Import Folder…",
   "playlists__library_count": "{num} songs",

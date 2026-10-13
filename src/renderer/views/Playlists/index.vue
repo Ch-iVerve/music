@@ -24,9 +24,13 @@ import CloudListsPanel from './components/CloudListsPanel.vue'
 import LocalImportProgressModal from '@renderer/components/common/LocalImportProgressModal.vue'
 
 /**
- * 我的歌单（工单 09；默认 tab 与顺序见工单 07）：两个 tab——**QQ 音乐·歌单**（QQ 云端自建歌单）
- * 与 **本地歌单**（本地库的自建列表）。两者是**两套数据、两种写语义**，以前堆在一根左栏里两个组
+ * 我的歌单（工单 09；默认 tab 与顺序见工单 07）：两个 tab——**在线**（QQ 云端自建歌单）
+ * 与 **本地**（本地自建列表）。两者是**两套数据、两种写语义**，以前堆在一根左栏里两个组
  * 各自滚动，现在各占一个 tab，每个 tab 内部仍是「左栏 + 右栏」。
+ *
+ * tab 文案（2026-10-13 用户口径）：`playlists__tab_local` 从「库」改成「本地」——票 04 起
+ * 库（素材总集）已升为独立一级入口「本地音乐」，本 tab 只剩自建列表，继续叫「库」会与
+ * 本地媒体库撞词（`CONTEXT.md` 的 _Avoid_ 正是这一条）。
  *
  * 这个文件只是壳：Tab 切换与 query 同步；两个面板在 components/ 里，各自取数。
  *
