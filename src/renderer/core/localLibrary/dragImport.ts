@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { ref } from '@common/utils/vueTools'
 import { useRouter } from '@common/utils/vueRouter'
+import { getPathForFile } from '@common/utils/electron'
 import { createUserList } from '@renderer/store/list/action'
 import { localLibraryGetAll, localLibraryUpdate, getEnvParams } from '@renderer/utils/ipc'
 import { userLists } from '@renderer/store/list/state'
@@ -49,17 +50,56 @@ const resolveTargetListId = async(): Promise<string> => {
   return id
 }
 
-const handleDrop = async(event: DragEvent) => {
-  // Electron 给 DOM File 扩展了 `path`（绝对路径，目录同样适用）；TS 的 DOM lib 不认识，局部声明
-  const files = Array.from(event.dataTransfer?.files ?? []) as unknown as Array<{ path: string, name: string }>
-  if (!files.length) return
+/** 拖入项（已从 DOM File 取出路径与名字；`isDir` 由调用方 stat 好） */
+export interface DroppedItem {
+  name: string
+  /** 绝对路径；取不到时为空串（处理见 `classifyDroppedItems`） */
+  path: string
+  isDir: boolean
+}
+
+/**
+ * 把拖入项分三堆（目录 / 音频 / 歌词）——**纯函数**，单测直接喂。
+ *
+ * 没有绝对路径的项**丢掉并计数**（`skipped`）：拿空串去 stat / 导入只会更晚炸或静默做错事。
+ * 计数交给调用方留一行日志——「拖进去没反应」这种反馈必须能查（2026-10-13 真机：`file.path`
+ * 在新版 Electron 已移除、恒 undefined，整批拖入被静默吞掉）。
+ */
+export const classifyDroppedItems = (items: DroppedItem[]) => {
   const folders: string[] = []
   const audioFiles: string[] = []
   const lrcFiles: string[] = []
-  for (const file of files) {
-    if (isDirectory(file.path)) folders.push(file.path)
-    else if (AUDIO_EXTENSIONS.has(path.extname(file.name).slice(1).toLowerCase())) audioFiles.push(file.path)
-    else if (path.extname(file.name).toLowerCase() == '.lrc') lrcFiles.push(file.path)
+  let skipped = 0
+  for (const item of items) {
+    if (!item.path) {
+      skipped++
+      continue
+    }
+    if (item.isDir) {
+      folders.push(item.path)
+      continue
+    }
+    const ext = path.extname(item.name).slice(1).toLowerCase()
+    if (AUDIO_EXTENSIONS.has(ext)) audioFiles.push(item.path)
+    else if (ext == 'lrc') lrcFiles.push(item.path)
+  }
+  return { folders, audioFiles, lrcFiles, skipped }
+}
+
+const handleDrop = async(event: DragEvent) => {
+  const files = Array.from(event.dataTransfer?.files ?? [])
+  if (!files.length) return
+  const items: DroppedItem[] = files.map(file => {
+    // 🔴 路径必须走 `webUtils.getPathForFile`（`@common/utils/electron`）：Electron 给 DOM File
+    // 打的 `file.path` 扩展属性已被移除（本仓 Electron 42 上读它恒 undefined），用它会让拖拽导入静默失效
+    const filePath = getPathForFile(file)
+    return { name: file.name, path: filePath, isDir: !!filePath && isDirectory(filePath) }
+  })
+  const { folders, audioFiles, lrcFiles, skipped } = classifyDroppedItems(items)
+  if (skipped) console.log(`[dragImport] 拖入 ${items.length} 项，其中 ${skipped} 项取不到绝对路径已跳过`)
+  if (!folders.length && !audioFiles.length && !lrcFiles.length) {
+    if (!skipped) console.log('[dragImport] 拖入项里没有可导入的内容（非音频 / 目录 / .lrc）')
+    return
   }
   // 顺序导入：编排层同一时刻只允许一个导入在跑（visible 守卫），并行会让后来者被静默丢掉
   for (const folder of folders) await importFolderToNewList(folder)

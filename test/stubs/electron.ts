@@ -434,6 +434,12 @@ export const clipboard = {
   availableFormats: vi.fn(() => [] as string[]),
 }
 
+// 拖入文件的绝对路径（`@common/utils/electron` 的 getPathForFile 用它）；桩里给空串 =
+// 「取不到路径」，调用方按跳过处理（真机那次静默失效正是这个形态）
+export const webUtils = {
+  getPathForFile: vi.fn(() => ''),
+}
+
 export const nativeImage = {
   createEmpty: vi.fn(() => ({ isEmpty: () => true, getSize: () => ({ width: 0, height: 0 }) })),
   createFromPath: vi.fn(() => ({ isEmpty: () => false, getSize: () => ({ width: 1, height: 1 }) })),
