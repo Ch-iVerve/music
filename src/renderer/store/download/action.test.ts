@@ -130,4 +130,54 @@ describe('store/download 完成后的收编编排', () => {
     expect(worker.removeTask).toHaveBeenCalledWith('download_1')
     expect(unhandled.reasons).toEqual([])
   })
+
+  /**
+   * 写标签必须**真等写完**再收编（2026-10-13 真机教训）。
+   *
+   * `writeMeta` 原本是 fire-and-forget：这里 await 立刻过，收编随即对**同一个文件**开跑，
+   * 而 flac 的标签改写正在 unlink 原文件 + rename 临时文件——收编读到半路消失的文件而失败
+   * （下载的歌进不了库），临时件还留成 `.lxmtemp` 孤儿。判据：writeMeta 的 promise 未落地前，
+   * `ingestDownloadedFile` 一次都不能被调。
+   */
+  it('writeMeta 未落地前不收编（写标签与收编不许赛跑）', async() => {
+    let resolveMeta!: () => void
+    worker.writeMeta.mockReturnValue(new Promise<void>(resolve => { resolveMeta = resolve }))
+    const task = createTask()
+
+    await startDownloadTasks([task])
+    await settle(4)
+
+    expect(worker.writeMeta).toHaveBeenCalledTimes(1)
+    expect(ingestDownloadedFile).not.toHaveBeenCalled()
+    expect(worker.removeTask).not.toHaveBeenCalled()
+
+    resolveMeta()
+    await settle()
+
+    expect(ingestDownloadedFile).toHaveBeenCalledWith('/media/.tmp/song1_320k.mp3')
+    expect(worker.removeTask).toHaveBeenCalledWith('download_1')
+  })
+
+  /**
+   * 已完成任务**不留在库里**（2026-10-13 真机：一次下载后 `download_list` 多出一行 `isComplate=1`）。
+   *
+   * `setStatus(COMPLETED)` 会排一次 100ms 的节流写，而它可能晚于 `removeTask` 的删行落地，
+   * 把「已完成」行又写回库。修复是删行前先撤掉这条待写。判据：整条完成链走完（含跨过 100ms），
+   * 一次 `downloadTasksUpdate` 都不该发生。
+   */
+  it('完成链不再把「已完成」行写回 download_list（无幽灵行）', async() => {
+    vi.useFakeTimers()
+    try {
+      const task = createTask()
+
+      await startDownloadTasks([task])
+      await vi.advanceTimersByTimeAsync(300)
+
+      expect(task.status).toBe(DOWNLOAD_STATUS.COMPLETED)
+      expect(worker.removeTask).toHaveBeenCalledWith('download_1')
+      expect(downloadTasksUpdate).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })

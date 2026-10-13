@@ -32,6 +32,18 @@ const throttleUpdateTask = (tasks: LX.Download.ListItem[]) => {
   }, 100)
 }
 
+/**
+ * 撤掉某个任务的**待写**（`throttleUpdateTask` 那 100ms 批写里的这一条）。
+ *
+ * 用在「已完成任务随即被移除」的收尾上：`setStatus(COMPLETED)` 会排一次节流写，而它可能
+ * 晚于 `removeTask` 的删行落地——那样「已完成」行会被写回 `download_list`，库里积下永远不会
+ * 再出现的幽灵任务（2026-10-13 真机：一次下载后库里多了一行 `isComplate=1`）。
+ * 撤掉之后若节流已经先写过，`removeTask` 的删行仍在它后面——两种顺序都以「行已删」收尾。
+ */
+const cancelPendingTaskUpdate = (id: string) => {
+  waitingUpdateTasks.delete(id)
+}
+
 const runingTask = new Map<string, LX.Download.ListItem>()
 
 // const initDownloadList = (list: LX.Download.ListItem[]) => {
@@ -246,17 +258,25 @@ const handleStartTask = async(downloadInfo: LX.Download.ListItem) => {
         break
       case 'complete':
         downloadInfo.progress = 100
-        // 下载完成 = 托管入库（集合概念统一 D1）：先写内嵌 meta（收编解析读的就是它），
+        // 下载完成 = 托管入库（集合概念统一 D1）：先**等内嵌 meta 写完**（收编解析读的就是它；
+        // 2026-10-13 真机教训：`writeMeta` 不透出 Promise 时这里 await 等于空等，收编会与
+        // flac/mp3 的标签改写对同一文件赛跑，下载的歌进不了库、还留下 `.lxmtemp` 孤儿），
         // 再走库管线（复制进媒体目录、库行 origin='download'、成功/命中已有哈希后删暂存原件）。
-        // 入库失败只记日志、不把任务改回失败态——文件还在 `.tmp`，可在库视图手动导入
+        // 写 meta / 入库失败都只记日志、不把任务改回失败态——文件还在 `.tmp`。
         void (async() => {
-          await saveMeta(downloadInfo)
+          await saveMeta(downloadInfo).catch(err => {
+            console.log('[download] 写入内嵌 meta 失败（不影响入库）:', err)
+          })
           await ingestDownloadedFile(downloadInfo.metadata.filePath).catch(err => {
             console.log('[download] 完成后入库失败（文件保留在暂存目录）:', err)
           })
-          void window.lx.worker.download.removeTask(downloadInfo.id)
-          runingTask.delete(downloadInfo.id)
           setStatus(downloadInfo, DOWNLOAD_STATUS.COMPLETED)
+          runingTask.delete(downloadInfo.id)
+          // 先撤掉这条「已完成」的节流待写、再删行：否则它会把行写回库（幽灵行，见 cancelPendingTaskUpdate）
+          cancelPendingTaskUpdate(downloadInfo.id)
+          await window.lx.worker.download.removeTask(downloadInfo.id).catch(err => {
+            console.log('[download] 移除已完成任务失败（库里会留一条已完成行，下次启动不再显示）:', err)
+          })
           void checkStartTask()
         })()
         break

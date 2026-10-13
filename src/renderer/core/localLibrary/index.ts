@@ -139,6 +139,9 @@ export const ingestDownloadedFile = async(filePath: string): Promise<boolean> =>
   const ingested = result.tracks.length > 0 || result.duplicateHashes.length > 0
   if (ingested) {
     await deleteOrphanFiles([filePath])
+    // 兜底：写标签流程（flacMeta/mp3Meta）若留下 `<file>.lxmtemp` 半成品，随原件一起清掉。
+    // 正常路径已不会残留（2026-10-13 修了 await 与改名），这几行是给旧版本残留与异常中断兜底。
+    await deleteOrphanFiles([`${filePath}.lxmtemp`])
     window.app_event.myListUpdate([LIST_IDS.LOCAL_LIBRARY])
   }
   return ingested
