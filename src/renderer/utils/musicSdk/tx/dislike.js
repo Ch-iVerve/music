@@ -25,8 +25,10 @@ import { createSong } from './utils/song'
  *   5. 翻页是**游标式**：`Page` + `SongLastid`（= 上一页最后一条的 `ID`），空页即到底
  *      （与参考实现的 `MultiFieldContinuationStrategy` 同一套）。游标不前进 / 服务端忽略游标两种
  *      异常形状都要能自己停住，不能让界面卡在循环里。
- *   6. 写只做「移出不喜欢」（`CancelDislike`）。**「加入不喜欢」本票不做**（用户没点名要，票面有记）：
- *      要加就得先决定入口放哪（行菜单？播放栏？），那是另一个产品决定。
+ *   6. 两个写端点都接了：`CancelDislike`（「QQ 不喜欢」tab 的移出）与 `AddDislike`（票 05 起：
+ *      对在线歌在「屏蔽播放」动作里**顺带**写云端，best-effort、失败不阻塞）。`AddDislike` 的
+ *      成功判据与移出完全相同（走同一个 `parseFeedbackResult`），2026-10-13 用正式凭证复验过
+ *      受控往返（count 0→1→0，状态已恢复；记录在 qq-music-native.md §5.11）。
  *
  * 只读写「歌曲」这一类（`Cmd: 3`）：歌手（2）与风格（4）本账号读回来是空的，形状对但没实测过写入。
  */
@@ -233,6 +235,36 @@ export default {
       limit: list.length || 1,
       source: 'tx',
     }
+  },
+
+  /**
+   * 加入「不喜欢」（`AddDislike`）。
+   *
+   * 参数形状与 `removeDislikedSongs` 同构：`{ Songs: [{ ID: '<数字 songId 字符串>', IdType: 1 }] }`
+   * （票 05 的受控往返实测；`ID` 用数字 songId 的字符串形态，读侧成员判定也用同一口径）。
+   *
+   * 判据同移出：`code==0 且 Retcode==0`（文件头第 2 条），不通过就抛（带码）。
+   * **不做读回成员校验**（移出那条有，这条不照抄）：新加入的条目落在列表哪个位置没有实测结论，
+   * 只读第 1 页判成员会给出**假失败**；且这条路径本来就是 best-effort——调用方
+   * （`store/user/action.ts` 的 `addDislikedSongToCloud`）吞掉失败只留日志，本地屏蔽已生效。
+   */
+  async addDislikedSongs(songIds) {
+    const ids = (Array.isArray(songIds) ? songIds : [songIds]).map(id => String(id ?? '')).filter(Boolean)
+    if (!ids.length) throw new Error('未选择要加入不喜欢的歌曲')
+    const credential = await requireCredential()
+
+    const node = await txCgi({
+      module: DISLIKE_MODULE,
+      method: 'AddDislike',
+      param: { Songs: ids.map(id => ({ ID: id, IdType: 1 })) },
+    }, webComm(credential)).promise
+    const result = parseFeedbackResult(node)
+    if (!result.ok) {
+      // 诊断一行：只有请求形状与 QQ 的错误码（同移出那条的写法）
+      console.log('[tx] 加入不喜欢被拒', { module: DISLIKE_MODULE, method: 'AddDislike', songs: ids, code: result.code, retcode: result.retcode, msg: result.msg })
+      throw new Error(failText('加入不喜欢', result))
+    }
+    return result
   },
 
   /**

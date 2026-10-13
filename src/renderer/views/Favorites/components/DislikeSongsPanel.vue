@@ -33,7 +33,8 @@ import { dislikedSongs, loadDislikedSongs, removeDislikedSong } from './useDisli
  * 别把两者做成同一块界面。
  *
  * 写操作只有「移出不喜欢」（二次确认，照 `SongsPanel` 的取消喜欢先例）；
- * **加入不喜欢不做**（见票面「边界」）——那要先决定入口放哪，是另一个产品决定。
+ * **加入不在这里**——票 05 起挂在「屏蔽播放」动作上（各处菜单 / 快捷键 / 雷达对在线歌顺带写云端，
+ * 见 `core/dislikeList.ts` 的 `addDislikeWithCloud`），本页只管查看与移出。
  */
 
 /**

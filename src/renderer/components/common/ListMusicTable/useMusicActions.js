@@ -4,7 +4,7 @@ import { dialog } from '@renderer/plugins/Dialog'
 import { useI18n } from '@renderer/plugins/i18n'
 import { removeListMusics } from '@renderer/store/list/action'
 import { formatMusicName, DEFAULT_MUSIC_NAME_TEMPLATE } from '@renderer/utils/index'
-import { addDislikeInfo, hasDislike } from '@renderer/core/dislikeList'
+import { addDislikeWithCloud, hasDislike } from '@renderer/core/dislikeList'
 import { playNext } from '@renderer/core/player'
 import { playMusicInfo } from '@renderer/store/player/state'
 import useMusicJump from '@renderer/utils/compositions/useMusicJump'
@@ -78,7 +78,7 @@ export default ({ props, list, selectedList, removeAllSelect }) => {
       confirmButtonText: t('confirm_button_text'),
     })
     if (!confirm) return
-    await addDislikeInfo([{ name: minfo.name, singer: minfo.singer }])
+    await addDislikeWithCloud(minfo)
     if (hasDislike(playMusicInfo.musicInfo)) {
       playNext(true)
     }

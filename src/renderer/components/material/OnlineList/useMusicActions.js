@@ -1,5 +1,5 @@
 import { useRouter } from '@common/utils/vueRouter'
-import { addDislikeInfo, hasDislike } from '@renderer/core/dislikeList'
+import { addDislikeWithCloud, hasDislike } from '@renderer/core/dislikeList'
 import { playNext } from '@renderer/core/player'
 import { playMusicInfo } from '@renderer/store/player/state'
 import { dialog } from '@renderer/plugins/Dialog'
@@ -58,7 +58,7 @@ export default ({ props }) => {
       confirmButtonText: t('confirm_button_text'),
     })
     if (!confirm) return
-    await addDislikeInfo([{ name: minfo.name, singer: minfo.singer }])
+    await addDislikeWithCloud(minfo)
     if (hasDislike(playMusicInfo.musicInfo)) {
       playNext(true)
     }

@@ -123,7 +123,7 @@ import { musicInfo, isPlay, playInfo } from '@renderer/store/player/state'
 import { tempListMeta } from '@renderer/store/list/state'
 import { addTempPlayList } from '@renderer/store/player/action'
 import { isFavSongInCloud } from '@renderer/store/user/action'
-import { addDislikeInfo, hasDislike } from '@renderer/core/dislikeList'
+import { addDislikeWithCloud, hasDislike } from '@renderer/core/dislikeList'
 import { dialog } from '@renderer/plugins/Dialog'
 import { useI18n } from '@renderer/plugins/i18n'
 import { LIST_IDS } from '@common/constants'
@@ -486,7 +486,7 @@ export default {
         confirmButtonText: t('confirm_button_text'),
       })
       if (!confirm) return
-      await addDislikeInfo([{ name: song.name, singer: song.singer }])
+      await addDislikeWithCloud(song)
       if (canGoNext.value) centerIndex.value++
     }
 

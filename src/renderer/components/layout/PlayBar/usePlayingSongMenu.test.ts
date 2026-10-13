@@ -27,7 +27,7 @@ const mocks = vi.hoisted(() => ({
   favTitle: vi.fn(),
   assertApiSupport: vi.fn(),
   hasDislike: vi.fn(),
-  addDislikeInfo: vi.fn(),
+  addDislikeWithCloud: vi.fn(),
   playNext: vi.fn(),
   canJumpToAlbum: vi.fn(),
   canJumpToSinger: vi.fn(),
@@ -52,7 +52,7 @@ vi.mock('@renderer/utils/musicSdk', () => ({
   default: { tx: { getMusicDetailPageUrl: () => 'https://y.qq.com/n/yqq/song/x.html' } },
 }))
 vi.mock('@renderer/store/utils', () => ({ assertApiSupport: mocks.assertApiSupport }))
-vi.mock('@renderer/core/dislikeList', () => ({ hasDislike: mocks.hasDislike, addDislikeInfo: mocks.addDislikeInfo }))
+vi.mock('@renderer/core/dislikeList', () => ({ hasDislike: mocks.hasDislike, addDislikeWithCloud: mocks.addDislikeWithCloud }))
 vi.mock('@renderer/core/player', () => ({ playNext: mocks.playNext }))
 vi.mock('@renderer/utils/compositions/useFavSong', () => ({
   default: () => ({
@@ -268,7 +268,7 @@ describe('usePlayingSongMenu 点下去派给谁', () => {
 
   it('dislike → 先确认；确认后进名单并跳下一首（右键的就是正在播放的这首）', async() => {
     mocks.confirm.mockResolvedValue(true)
-    // 菜单显示时还没进名单；addDislikeInfo 之后 hasDislike 为真 → 触发 playNext(true)
+    // 菜单显示时还没进名单；addDislikeWithCloud 之后 hasDislike 为真 → 触发 playNext(true)
     mocks.hasDislike.mockReturnValueOnce(false).mockReturnValue(true)
     const { showMenu, menuClick } = usePlayingSongMenu()
     showMenu({ pageX: 0, pageY: 0 })
@@ -277,7 +277,7 @@ describe('usePlayingSongMenu 点下去派给谁', () => {
     await flushPromises()
 
     expect(mocks.confirm).toHaveBeenCalled()
-    expect(mocks.addDislikeInfo).toHaveBeenCalledWith([{ name: '歌名', singer: '歌手' }])
+    expect(mocks.addDislikeWithCloud).toHaveBeenCalledWith(expect.objectContaining({ name: '歌名', singer: '歌手' }))
     expect(mocks.playNext).toHaveBeenCalledWith(true)
   })
 
@@ -289,7 +289,7 @@ describe('usePlayingSongMenu 点下去派给谁', () => {
     menuClick({ action: 'dislike' })
     await flushPromises()
 
-    expect(mocks.addDislikeInfo).not.toHaveBeenCalled()
+    expect(mocks.addDislikeWithCloud).not.toHaveBeenCalled()
     expect(mocks.playNext).not.toHaveBeenCalled()
   })
 

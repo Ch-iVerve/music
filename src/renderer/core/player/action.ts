@@ -23,7 +23,7 @@ import { tempListMeta } from '@renderer/store/list/state'
 import { setAligning } from '@renderer/store/player/lyric'
 import { addFavSongToCloud, removeFavSongFromCloud, favErrorText } from '@renderer/store/user/action'
 import { dialog } from '@renderer/plugins/Dialog'
-import { addDislikeInfo } from '@renderer/core/dislikeList'
+import { addDislikeWithCloud } from '@renderer/core/dislikeList'
 import { isUnavailableError, isUnavailableMusic, hintUnavailableMusic } from '@renderer/core/music/unavailable'
 import { MAX_CONSECUTIVE_UNAVAILABLE_SKIP, unavailableSkipGuard } from './unavailableSkip'
 // import { checkMusicFileAvailable } from '@renderer/utils/music'
@@ -750,6 +750,6 @@ export const uncollectMusic = async() => {
 export const dislikeMusic = async() => {
   if (!playMusicInfo.musicInfo) return
   const minfo = 'progress' in playMusicInfo.musicInfo ? playMusicInfo.musicInfo.metadata.musicInfo : playMusicInfo.musicInfo
-  await addDislikeInfo([{ name: minfo.name, singer: minfo.singer }])
+  await addDislikeWithCloud(minfo)
   await playNext(true)
 }

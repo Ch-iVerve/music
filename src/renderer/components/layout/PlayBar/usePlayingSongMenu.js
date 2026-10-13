@@ -7,7 +7,7 @@ import musicSdk from '@renderer/utils/musicSdk'
 import { useI18n } from '@renderer/plugins/i18n'
 import { dialog } from '@renderer/plugins/Dialog'
 import { formatMusicName, DEFAULT_MUSIC_NAME_TEMPLATE } from '@renderer/utils'
-import { addDislikeInfo, hasDislike } from '@renderer/core/dislikeList'
+import { addDislikeWithCloud, hasDislike } from '@renderer/core/dislikeList'
 import { playNext } from '@renderer/core/player'
 import useFavSong from '@renderer/utils/compositions/useFavSong'
 import useMusicJump from '@renderer/utils/compositions/useMusicJump'
@@ -176,7 +176,7 @@ export default () => {
       confirmButtonText: t('confirm_button_text'),
     })
     if (!confirm) return
-    await addDislikeInfo([{ name: minfo.name, singer: minfo.singer }])
+    await addDislikeWithCloud(minfo)
     // 右键的就是正在播放的这首：进名单后跳到下一首（同 useMusicActions 的口径）
     if (hasDislike(currentMusic.value)) playNext(true)
   }

@@ -578,6 +578,31 @@ export const setPlaylistFav = async(tid: string, fav: boolean): Promise<void> =>
   if (favLists.length) void reloadFavLists()
 }
 
+// ── 「不喜欢」的云端写入（票 05，best-effort）──────────────────────────────
+// 与上面那批收藏写的口径**故意不同**：这条失败不抛。它挂在「屏蔽播放」动作的尾巴上，
+// 本地规则已经生效、播放该拦的照拦——这时再弹一个窗只会让「不喜欢」变成两步操作
+// （票面口径：不阻塞、不弹窗，只留日志）。这条待办性可见的代价是：云端写失败要翻日志。
+
+/**
+ * 把一首**在线歌**顺带写进 QQ 云端「不喜欢」。
+ *
+ * 本地歌（`source` 不是 `tx`：下载/导入进来的文件、队列里的本地条目）与没有数字
+ * songId 的对象直接跳过返回——向 QQ 送本地条目的 id 是错的。
+ * 失败只 `console.log`（带 QQ 的码），绝不抛。
+ */
+export const addDislikedSongToCloud = async(musicInfo: LX.Music.MusicInfo): Promise<void> => {
+  if (musicInfo?.source != 'tx') return
+  const songId = Number(musicInfo.meta?.id ?? 0)
+  if (!songId) return
+  try {
+    await music.tx.dislike.addDislikedSongs([songId])
+  } catch (err: any) {
+    // 未登录是常见态（本地规则照常拦播放，云端这条本来就无处可写），不打日志；
+    // 其余失败留一行诊断（带 QQ 的码，不弹窗）。
+    if (err?.message != 'QQ 音乐未登录') console.log('[user] 云端不喜欢写入失败（本地播放屏蔽已生效，不阻塞）', err?.message ?? err)
+  }
+}
+
 /** 重新拉收藏专辑列表第一页（写操作后让「我的收藏」页跟着变）。 */
 const reloadFavAlbums = async(): Promise<void> => {
   try {

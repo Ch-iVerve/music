@@ -3,7 +3,7 @@ import {
   cloudListSongs, createdLists, favAlbumIds, favAlbums, favLists, favPlaylistIds, favSongIds, favSongIdsLoaded, favSongs, followSingers, isInited, labels, musicGene, pagers, profile, vip,
 } from './state'
 import {
-  addFavSongToCloud, canFavSongInCloud, createCloudList, isFavSongInCloud, loadMoreFavAlbums, loadMoreFavLists, loadMoreFollowSingers, loadMoreFavSongs, reloadCreatedLists, removeCloudList, removeFavSongFromCloud, resetUserCenter, toggleFavSongToCloud,
+  addDislikedSongToCloud, addFavSongToCloud, canFavSongInCloud, createCloudList, isFavSongInCloud, loadMoreFavAlbums, loadMoreFavLists, loadMoreFollowSingers, loadMoreFavSongs, reloadCreatedLists, removeCloudList, removeFavSongFromCloud, resetUserCenter, toggleFavSongToCloud,
 } from './action'
 
 /**
@@ -19,7 +19,7 @@ import {
  * 只把最外层 SDK 换成桩，store 与状态写回都是真的。
  */
 
-const { likeSong, unlikeSong, getFavSongIds, getFavSonglist, getFavAlbum, getFollowSingers, getFavSong, getCreatedSonglist, createList, removeList } = vi.hoisted(() => ({
+const { likeSong, unlikeSong, getFavSongIds, getFavSonglist, getFavAlbum, getFollowSingers, getFavSong, getCreatedSonglist, createList, removeList, addDislikedSongs } = vi.hoisted(() => ({
   likeSong: vi.fn(),
   unlikeSong: vi.fn(),
   getFavSongIds: vi.fn(),
@@ -30,6 +30,7 @@ const { likeSong, unlikeSong, getFavSongIds, getFavSonglist, getFavAlbum, getFol
   getCreatedSonglist: vi.fn(),
   createList: vi.fn(),
   removeList: vi.fn(),
+  addDislikedSongs: vi.fn(),
 }))
 
 vi.mock('@renderer/utils/musicSdk', () => ({
@@ -37,6 +38,7 @@ vi.mock('@renderer/utils/musicSdk', () => ({
     tx: {
       songList: { likeSong, unlikeSong, createList, removeList },
       user: { getFavSongIds, getFavSonglist, getFavAlbum, getFollowSingers, getFavSong, getCreatedSonglist },
+      dislike: { addDislikedSongs },
     },
   },
 }))
@@ -294,6 +296,59 @@ describe('store/user/action 的收藏来源分支（本地 vs QQ 在线）', () 
     // 没有 QQ id 的一律「未收藏」（不能拿空串去 includes）
     expect(isFavSongInCloud({ ...song('1'), meta: {} })).toBe(false)
     expect(isFavSongInCloud(null)).toBe(false)
+  })
+})
+
+/**
+ * 「不喜欢」的云端顺带写（票 05）。与上面那批收藏写的口径**故意不同**：失败不抛。
+ * 它挂在「屏蔽播放」动作的尾巴上（本地屏蔽规则已经生效），弹窗只会把一次操作变成两步；
+ * 所以契约是：在线歌才发、本地歌一个请求都不发、失败吞掉只留日志。
+ */
+describe('store/user/action 的 addDislikedSongToCloud（票 05）', () => {
+  /** 本地文件：与收藏来源分支同一形态（没有 QQ 歌曲 id） */
+  const localFile = { id: 'local_1', name: '本地文件', singer: '歌手', source: 'local', interval: '03:00', meta: {} } as any
+
+  it('在线歌 → 用数字 songId 写云端（AddDislike）', async() => {
+    addDislikedSongs.mockResolvedValue({ ok: true, code: 0, retcode: 0, msg: '' })
+
+    await addDislikedSongToCloud(song('464898842'))
+
+    expect(addDislikedSongs).toHaveBeenCalledTimes(1)
+    expect(addDislikedSongs).toHaveBeenCalledWith([464898842])
+  })
+
+  it('本地文件 / 其它源 → 直接跳过，一个请求都不发', async() => {
+    await addDislikedSongToCloud(localFile)
+    await addDislikedSongToCloud({ ...song('1'), source: 'netease' })
+
+    expect(addDislikedSongs).not.toHaveBeenCalled()
+  })
+
+  it('缺数字 songId（meta 空 / 无 meta）→ 不发（不拿 NaN 打接口）', async() => {
+    await addDislikedSongToCloud({ ...song('1'), meta: {} })
+    await addDislikedSongToCloud({ ...song('1'), meta: undefined })
+
+    expect(addDislikedSongs).not.toHaveBeenCalled()
+  })
+
+  it('云端被拒 → 不抛给调用方（本地屏蔽已生效），只留一行日志', async() => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+    addDislikedSongs.mockRejectedValue(new Error('加入不喜欢被拒（code=10000 retcode=1）'))
+
+    await expect(addDislikedSongToCloud(song('1'))).resolves.toBeUndefined()
+
+    expect(log).toHaveBeenCalled()
+    log.mockRestore()
+  })
+
+  it('未登录（requireCredential 抛的固定串）→ 静默跳过，不打日志', async() => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+    addDislikedSongs.mockRejectedValue(new Error('QQ 音乐未登录'))
+
+    await expect(addDislikedSongToCloud(song('1'))).resolves.toBeUndefined()
+
+    expect(log).not.toHaveBeenCalled()
+    log.mockRestore()
   })
 })
 
