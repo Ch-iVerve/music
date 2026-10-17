@@ -30,6 +30,10 @@ export interface LibraryRow {
 
 const UNKNOWN_KEY = '__unknown__'
 
+// 组间排序的排序器：**显式钉中文（拼音序）**——localeCompare 吃运行环境默认 locale 时，
+// 中文名在 LANG=C（CI）下退化成码点序（甲/乙 反序），只有本机 zh_CN 下才是拼音序（2026-10-17 CI 实测）。
+const nameCollator = new Intl.Collator('zh-Hans-CN', { numeric: true, sensitivity: 'base' })
+
 /** 搜索过滤：歌名/歌手/专辑的子串匹配（大小写不敏感；字段做空值防御，坏数据不炸过滤） */
 export const filterLibraryTracks = (tracks: LibraryTrack[], query: string): LibraryTrack[] => {
   const q = query.trim().toLowerCase()
@@ -71,7 +75,7 @@ export const groupLibraryTracks = (
   const sortedKeys = Array.from(groups.keys()).sort((a, b) => {
     if (a == UNKNOWN_KEY) return 1
     if (b == UNKNOWN_KEY) return -1
-    return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+    return nameCollator.compare(a, b)
   })
 
   const rows: LibraryRow[] = []
