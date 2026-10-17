@@ -22,6 +22,9 @@ import crypto from 'node:crypto'
  *   3. 头的 key 与 value 都要编码，且安全集只有 `A-Za-z0-9-_.~`（`/`、`+`、`=`、`:` 都要转义）
  *      —— 临时密钥的 token 里常带这些字符，漏了就会签名不符。
  *
+ * ⚠️ 静态安全扫描会把下面两处 `sha1` 报成 weak-crypto（CWE-328）——**这是协议规定的算法名**
+ * （COS 的 `q-sign-algorithm=sha1`，换成别的服务端直接判签名不符），不是本项目的加密选型；已接受。
+ *
  * 只签名**我们完全控制**的头（host / content-type / x-cos-security-token）：`content-length`
  * 由请求库自己算（needle 可能走 chunked），签它等于给自己埋雷；COS 只校验声明过的头。
  */
