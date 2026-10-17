@@ -13,6 +13,11 @@
 # （只为校验、不产包，见上面 ADR-0008 那段）——于是 TS 类型错误在 CI 里完全没有门禁，能一路进
 # main。npm run typecheck 用三个构建目标的 tsconfig 各跑一遍 tsc --noEmit，补上这条缝。
 # 口径由全历史自审查（2026-09-26）定，落点约定见 docs/agents/self-review.md（本机-only）。
+#
+# runner 与 action 版本口径（2026-10-17 定）：
+# - `runs-on` 钉到具名镜像，不用 `ubuntu-latest`——后者自 2026-10-19 起开始迁往 Ubuntu 26，
+#   留着会既收到迁移通知、又让「CI 跑在哪个系统上」随 GitHub 的时间表变。要升镜像就显式改这一行。
+# - action 用最新 major（v7）：v4 那代跑在 Node 20 运行时上，运行页会挂一条弃用警告。
 name: verify
 
 on:
@@ -23,10 +28,10 @@ on:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: npm
