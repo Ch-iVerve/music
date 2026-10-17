@@ -40,10 +40,12 @@ export const init = (lxDataPath: string): boolean | null => {
         nativeBinding,
         // verbose: process.env.NODE_ENV !== 'production' ? console.log : undefined,
       })
-    } catch (error) {
+    } catch (error: any) {
       // 文件不存在（首次运行）或文件损坏（不是合法的 SQLite 库）都会走到这里：
       // 前者是正常路径，后者会在 initTables 抛错、由外层 catch 收成 `null` 交给调用方重建。
-      console.log(error)
+      // 只打一行摘要：原来把整个 error 排出来会带一整条堆栈，在日志（含 CI）里看着像故障，
+      // 而它其实是首次运行的正常路径；真要排查库损坏，这里的 message 与外层 catch 的完整错误都够用。
+      console.log('[dbService] 无既有库（首次运行）或库不可用，按新建库处理：', error.message)
       db = new Database(databasePath, {
         nativeBinding,
         // verbose: process.env.NODE_ENV !== 'production' ? console.log : undefined,
