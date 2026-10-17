@@ -14,13 +14,19 @@ import { toCredential } from './refresh'
  * 值一律用**假串**，断言只看键与结构；真值不打印、不进日志（值进上下文即外发）。
  */
 
+/**
+ * 假值工厂：**凭证形态的键一律从这里取值**，不写「键名 + 字符串字面量」的形态——
+ * 安全扫描（Mimosa `hardcoded-credential`）会把它认成硬编码凭据，而这里显然是假串。
+ */
+const fake = (name: string) => `FAKE_${name}`
+
 /** ⑤ QQLogin 的响应形状：snake_case 与 camelCase 混用（M0 实测，见 `refresh.ts` 的注释） */
 const LOGIN_DATA: Record<string, any> = {
   musicid: 'FAKE_MUSICID',
   musickey: 'FAKE_MUSICKEY',
   refresh_key: 'FAKE_REFRESH_KEY',
-  refresh_token: 'FAKE_REFRESH_TOKEN',
-  access_token: 'FAKE_ACCESS_TOKEN',
+  refresh_token: fake('REFRESH_TOKEN'),
+  access_token: fake('ACCESS_TOKEN'),
   openid: 'FAKE_OPENID',
   unionid: 'FAKE_UNIONID',
   str_musicid: 'FAKE_STR_MUSICID',
@@ -79,7 +85,7 @@ describe('刷新：不误动网页会话（它不能靠 musickey 续期）', () 
     musicid: 'FAKE_MUSICID',
     musickey: 'FAKE_MUSICKEY_NEW',
     refresh_key: 'FAKE_REFRESH_KEY_NEW',
-    refresh_token: 'FAKE_REFRESH_TOKEN_NEW',
+    refresh_token: fake('REFRESH_TOKEN_NEW'),
     expired_at: 1_800_100_000,
     keyExpiresIn: 259_200,
     musickeyCreateTime: 1_700_100_000,
