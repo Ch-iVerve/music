@@ -75,10 +75,8 @@ const openComment = async(musicInfo: Record<string, unknown>) => {
 /** 标题行文本（含歌名与计数） */
 const titleText = (wrapper: ReturnType<typeof mountComment>) => wrapper.get('h3').text()
 
-/** 等 `setWidth` 的两级 setTimeout 跑完再卸载（同 `index.test.ts`：卸载后 refs 已置空） */
-const closeComment = async(wrapper: ReturnType<typeof mountComment>) => {
-  await new Promise(resolve => setTimeout(resolve, 0))
-  await new Promise(resolve => setTimeout(resolve, 0))
+/** 卸载收尾（同 `index.test.ts`：组件已加固，卸载即撤 setWidth 的两级定时器） */
+const closeComment = (wrapper: ReturnType<typeof mountComment>) => {
   wrapper.unmount()
 }
 
@@ -115,7 +113,7 @@ describe('MusicComment：切歌跟着换评论', () => {
     expect(mocks.getComment.mock.calls[1][0]).toMatchObject({ name: 'B' })
     expect(titleText(wrapper)).toBe('comment__title|B(222)')
 
-    await closeComment(wrapper)
+    closeComment(wrapper)
   })
 
   it('show 为假时换歌不取数（面板关着的换歌不该白发请求）', async() => {
@@ -125,7 +123,7 @@ describe('MusicComment：切歌跟着换评论', () => {
 
     expect(mocks.getComment).not.toHaveBeenCalled()
 
-    await closeComment(wrapper)
+    closeComment(wrapper)
   })
 
   it('上一首的响应后到时不覆盖新歌的数据', async() => {
@@ -147,6 +145,6 @@ describe('MusicComment：切歌跟着换评论', () => {
 
     expect(titleText(wrapper)).toBe('comment__title|B(222)')
 
-    await closeComment(wrapper)
+    closeComment(wrapper)
   })
 })

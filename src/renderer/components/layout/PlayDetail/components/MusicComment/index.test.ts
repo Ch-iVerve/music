@@ -77,15 +77,13 @@ const openComment = async() => {
 }
 
 /**
- * 等 `setWidth` 的两级 `setTimeout` 跑完再卸载。
+ * 卸载收尾。
  *
- * 那两级定时器会碰 `$refs.dom_tabMain`（`handleToggleTab`）：卸载后 refs 已置空，定时器再
- * 触发就是一条「Cannot set properties of null (setting 'scrollLeft')」的未处理异常
- * （组件自身既有行为，本用例不修它，只负责别踩）。
+ * 原来要先等 `setWidth` 的两级 `setTimeout` 跑完再卸载（那两级会碰 `$refs.dom_tabMain`，
+ * 卸载后 refs 已置空就是一条未处理异常）。组件已按同一口径加固——卸载即撤定时器、
+ * 回调里判空——所以不必再绕；「卸载后定时器漏出去」本身也另有专门用例钉住。
  */
-const closeComment = async(wrapper: ReturnType<typeof mountComment>) => {
-  await new Promise(resolve => setTimeout(resolve, 0))
-  await new Promise(resolve => setTimeout(resolve, 0))
+const closeComment = (wrapper: ReturnType<typeof mountComment>) => {
   wrapper.unmount()
 }
 
@@ -120,7 +118,7 @@ describe('评论弹窗标题的计数', () => {
     expect(mocks.getComment).toHaveBeenCalledTimes(1)
     expect(mocks.getHotComment).toHaveBeenCalledTimes(1)
 
-    await closeComment(wrapper)
+    closeComment(wrapper)
   })
 
   it('总数真的是 0 时照显 (0)（0 是有效数据，不是「取不到」）', async() => {
@@ -131,7 +129,7 @@ describe('评论弹窗标题的计数', () => {
 
     expect(titleText(wrapper)).toBe('comment__title|晴天(0)')
 
-    await closeComment(wrapper)
+    closeComment(wrapper)
   })
 
   it('响应里没有这个数（null）→ 标题只有歌名，不留占位噪音', async() => {
@@ -142,7 +140,7 @@ describe('评论弹窗标题的计数', () => {
 
     expect(titleText(wrapper)).toBe('comment__title|晴天')
 
-    await closeComment(wrapper)
+    closeComment(wrapper)
   })
 
   it('最新评论加载失败 → 标题只有歌名，不显示 0 或其它占位', async() => {
@@ -155,6 +153,35 @@ describe('评论弹窗标题的计数', () => {
     expect(mocks.getComment.mock.calls.length).toBe(3)
     expect(titleText(wrapper)).toBe('comment__title|晴天')
 
-    await closeComment(wrapper)
+    closeComment(wrapper)
+  })
+})
+
+/**
+ * `setWidth` 排的两级定时器在卸载后不许再跑。
+ *
+ * 这两级回调分别读 `$refs.dom_container` 与 `$refs.dom_tabMain`；卸载后 refs 置空，漏出去
+ * 就是 `null.style` / `null.scrollLeft` 的未处理异常（三个测试文件此前都得「先等定时器跑完
+ * 再卸载」绕开）。播放详情关掉时组件就卸载，用户点快一点就能踩到，所以这里钉住。
+ */
+describe('评论弹窗的取宽定时器', () => {
+  it('卸载后两级定时器都被撤销：refs 置空也不漏未捕获异常', async() => {
+    // 两个抓手都挂：组件用的是裸 `setTimeout`（走 Node 定时器，异常落到 process 的
+    // uncaughtException），jsdom 侧则是 window 的 error 事件——哪个生效都别漏（这条转发的
+    // 机制记录在 test/dom/error.test.ts）
+    const errors: unknown[] = []
+    const onError = (ev: ErrorEvent) => { errors.push(ev.error ?? ev.message) }
+    const onUncaught = (err: unknown) => { errors.push(err) }
+    window.addEventListener('error', onError)
+    process.on('uncaughtException', onUncaught)
+
+    const wrapper = mountComment()
+    wrapper.unmount() // 立刻卸载：不等那两级定时器
+    // 两级都是 0ms 定时器，等过它们的触发窗口
+    await new Promise(resolve => setTimeout(resolve, 20))
+
+    window.removeEventListener('error', onError)
+    process.off('uncaughtException', onUncaught)
+    expect(errors).toEqual([])
   })
 })

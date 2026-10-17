@@ -113,10 +113,8 @@ const openComment = async() => {
   return wrapper
 }
 
-/** 等 setWidth 的两级 setTimeout 跑完再卸载（它们会碰 refs，卸载后触发是未处理异常）。 */
-const closeComment = async(wrapper: ReturnType<typeof mountComment>) => {
-  await new Promise(resolve => setTimeout(resolve, 0))
-  await new Promise(resolve => setTimeout(resolve, 0))
+/** 卸载收尾。组件已加固（卸载即撤 setWidth 的两级定时器），不必再等它们跑完。 */
+const closeComment = (wrapper: ReturnType<typeof mountComment>) => {
   wrapper.unmount()
 }
 
@@ -169,7 +167,7 @@ describe('发表评论', () => {
     expect(texts[1]).not.toContain('comment__delete')
     expect(texts[1]).not.toContain('comment__pending_own')
 
-    await closeComment(wrapper)
+    closeComment(wrapper)
   })
 
   it('公开列表里已经有同一条 → 不重复插入，且不再去问「自己的评论」通道', async() => {
@@ -195,7 +193,7 @@ describe('发表评论', () => {
     expect(mocks.getSelfComment).not.toHaveBeenCalled()
     expect(rowTexts(wrapper).length).toBe(2)
 
-    await closeComment(wrapper)
+    closeComment(wrapper)
   })
 
   it('点删除 → 二次确认后调用删除接口并重拉，那一行消失', async() => {
@@ -214,7 +212,7 @@ describe('发表评论', () => {
     expect(rowTexts(wrapper).length).toBe(1)
     expect(rowTexts(wrapper)[0]).not.toContain('[zcode-verify] from test')
 
-    await closeComment(wrapper)
+    closeComment(wrapper)
   })
 
   it('发表失败 → 提示行给失败原因，不插入假行', async() => {
@@ -233,7 +231,7 @@ describe('发表评论', () => {
     // 输入框内容保留，用户不用重打
     expect(wrapper.vm.composerText).toBe('[zcode-verify] from test')
 
-    await closeComment(wrapper)
+    closeComment(wrapper)
   })
 })
 
@@ -252,7 +250,7 @@ describe('发表评论的待定集合跨卸载重挂（会话级）', () => {
     await flushPromises()
     expect(rowTexts(first).length).toBe(2)
 
-    await closeComment(first)
+    closeComment(first)
 
     // 重挂（模拟关掉播放详情再打开）：公开列表里仍然没有那条，待定集合要还在
     mocks.getSelfComment.mockClear()
@@ -264,6 +262,6 @@ describe('发表评论的待定集合跨卸载重挂（会话级）', () => {
     expect(rowTexts(second)[0]).toContain('comment__pending_own')
     expect(mocks.getSelfComment).toHaveBeenCalled()
 
-    await closeComment(second)
+    closeComment(second)
   })
 })

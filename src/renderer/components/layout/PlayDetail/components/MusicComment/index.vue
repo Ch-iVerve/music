@@ -90,6 +90,15 @@ export const clearOwnPendingComments = () => {
   ownPendingComments.clear()
 }
 
+/**
+ * `setWidth` 的两级定时器 id（模块级：评论面板在 `PlayDetail` 里同时只挂一个实例）。
+ * 两级回调分别碰 `$refs.dom_container` 与 `$refs.dom_tabMain`，而 refs 在卸载后置空——
+ * 卸载 / 重排时必须按 id 撤掉，否则漏出去就是 `null.style` / `null.scrollLeft` 的未处理异常
+ * （播放详情关掉时组件就卸载，点快一点就能踩到）。
+ */
+let widthTimer = 0
+let tabTimer = 0
+
 export default {
   name: 'MusicComment',
   components: {
@@ -224,16 +233,25 @@ export default {
   },
   beforeUnmount() {
     window.removeEventListener('resize', this.setWidth)
+    // 两级定时器一起撤掉（卸载后 $refs 已置空，让它们跑完就是未处理异常）
+    clearTimeout(widthTimer)
+    clearTimeout(tabTimer)
     // 组件实例要没了：会话级待定集合只留当前这首歌的（关掉播放详情再打开还要靠它合并，
     // 见模块级 ownPendingComments 的注释；其它歌的待定项不会再被合并，顺手清掉）
     pruneOwnPendingComments(songKeyOf(this.currentMusicInfo))
   },
   methods: {
     setWidth() {
-      setTimeout(() => {
-        this.$refs.dom_container.style.width = Math.floor(this.$refs.dom_container.parentNode.clientWidth * 0.5) + 'px'
+      // 每次 resize 重排前先清上一枚，别让定时器叠着排队
+      clearTimeout(widthTimer)
+      widthTimer = setTimeout(() => {
+        const dom_container = this.$refs.dom_container
+        // 组件可能已经卸载（ref 置空）：读它之前先判空，别把未处理异常漏出去
+        if (dom_container == null) return
+        dom_container.style.width = Math.floor(dom_container.parentNode.clientWidth * 0.5) + 'px'
 
-        setTimeout(() => {
+        clearTimeout(tabTimer)
+        tabTimer = setTimeout(() => {
           this.handleToggleTab(this.tabActiveId, true)
         })
       })
@@ -508,13 +526,17 @@ export default {
     },
     handleToggleTab(id, force) {
       if (!this.available || (!force && this.tabActiveId == id)) return
-      switch (id) {
-        case 'hot':
-          this.$refs.dom_tabMain.scrollLeft = 0
-          break
-        case 'new':
-          this.$refs.dom_tabMain.scrollLeft = this.$refs.dom_tabMain.clientWidth
-          break
+      // ref 可能不在（面板 v-if 收起的瞬间 / 卸载前一刻）：滚动同步跳过，tab 照常切
+      const dom_tabMain = this.$refs.dom_tabMain
+      if (dom_tabMain != null) {
+        switch (id) {
+          case 'hot':
+            dom_tabMain.scrollLeft = 0
+            break
+          case 'new':
+            dom_tabMain.scrollLeft = dom_tabMain.clientWidth
+            break
+        }
       }
       this.tabActiveId = id
     },
