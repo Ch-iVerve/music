@@ -1,5 +1,5 @@
 {
-  "version": "1.66.42",
+  "version": "2.89.70",
   "desc": "Ch'iverve Music —— QQ 音乐桌面客户端（基于 LX Music 改造）。\n\n本项目为研究用途的源码仓库，仅供研究，不对外发布任何打包版；请自行构建（见 README 的「自行构建」）。\n\n此文件是版本号迭代时与 package.json 一起改的对外版本声明。",
   "history": []
 }

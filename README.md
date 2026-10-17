@@ -1,7 +1,7 @@
 <h1 align="center">Ch'iverve Music</h1>
 
 > **Research source only — no binaries, no packaged releases.**
-> Ch'iverve Music is a research fork of [LX Music Desktop](https://github.com/lyswhut/lx-music-desktop) that rebuilds QQ Music as a native desktop client (login, my music, recommendations, multi-quality streaming). It is **not affiliated with Tencent** in any way, and **this repository ships no installers and no build artifacts** — build it yourself from source. All documentation is written in Chinese.
+> Ch'iverve Music is a research fork of [LX Music Desktop](https://github.com/lyswhut/lx-music-desktop) that rebuilds QQ Music as a native desktop client (login, my music, recommendations, multi-quality streaming, a managed local media library). It is **not affiliated with Tencent** in any way, and **this repository ships no installers and no build artifacts** — build it yourself from source. All documentation is written in Chinese.
 
 > ### About this repository
 >
@@ -16,7 +16,7 @@
 >
 > > 由于官方 qq 音乐官方 Linux 版年久失修 不得以我们发布本研究仓库 我们十分尊重版权 所以我们的仓库仅供研究 所以我们不对外发布任何打包版 请自行学习建构
 >
-> 本仓库是 [LX Music 桌面版](https://github.com/lyswhut/lx-music-desktop)（作者 [lyswhut](https://github.com/lyswhut)，中文署名「落雪无痕」）的**独立衍生产品**，基于上游 `v2.12.6`（commit `ad95d509`）整树建立，改造目标是在桌面端内置完整的 QQ 音乐能力（登录、我的音乐、发现与推荐、关注歌手与关注动态、专辑 / 歌手 / MV、评论读写、多音质取流）。**本仓库仅供技术研究与学习交流，不对外发布任何打包版。**
+> 本仓库是 [LX Music 桌面版](https://github.com/lyswhut/lx-music-desktop)（作者 [lyswhut](https://github.com/lyswhut)，中文署名「落雪无痕」）的**独立衍生产品**，基于上游 `v2.12.6`（commit `ad95d509`）整树建立，改造目标是在桌面端内置完整的 QQ 音乐能力（登录、我的音乐、发现与推荐、关注歌手与关注动态、专辑 / 歌手 / MV、评论读写、多音质取流），并带一个**本地媒体库**（文件夹 / 拖拽导入、歌曲信息与歌词编辑、多格式导出，下载完成自动入库）。**本仓库仅供技术研究与学习交流，不对外发布任何打包版。**
 >
 > - **不提供任何打包版**：不发安装包、**不提供任何构建产物**（CI 只跑测试与 lint）。**Release 只作开发阶段的成果标记**——附中英双语说明与源码快照，**不带任何二进制**。想用就自行学习建构，方式见下方「自行构建」——这是本仓库的定位，不是待补的缺口。
 > - **与腾讯无关联**：本项目与腾讯及其关联公司**没有任何关系，也未获其授权、认可或支持**；内置能力仅为技术可行性研究。请支持正版，并在 **24 小时内清除**使用过程中产生的版权数据（沿用上游补充条款 §2.1）。
@@ -112,7 +112,7 @@ npm run lint     # eslint（TS 文件在 build 期不跑 lint，改了 TS 要单
 
 ### 命令行工具（可选）
 
-`scripts/qqctl` 是随仓库附带、零 npm 依赖的 Node CLI：用应用本机的登录态直接操作 QQ 音乐账号——登录态体检（脱敏输出）、搜索、自建歌单读写，含批量「歌手 - 歌名」匹配加歌（打分门槛 + dry-run + 写后回读校验），默认低频节流、凭证不落日志。命令面与防错机制见 [`scripts/qqctl/README.md`](./scripts/qqctl/README.md)。
+`scripts/qqctl` 是随仓库附带、零 npm 依赖的 Node CLI：用应用本机的登录态直接操作 QQ 音乐账号——登录态体检（脱敏输出）、搜索、自建歌单读写与备份 / 受控恢复（backup / restore），含批量「歌手 - 歌名」匹配加歌（打分门槛 + 现场 / 综艺降权 + dry-run + 写后回读校验），默认低频节流、凭证不落日志。命令面与防错机制见 [`scripts/qqctl/README.md`](./scripts/qqctl/README.md)。
 
 ### 想自己造包（可选）
 
