@@ -106,9 +106,15 @@ const popupStyle = reactive({
   maxHeight: '250px',
 })
 
+let popupWidthTimer = 0
 const setTagPopupWidth = () => {
-  window.setTimeout(() => {
+  // 每次重排（含 resize）先清掉上一枚，别让它们叠着排队；卸载时也要取消——
+  // 回调漏到卸载之后就是未捕获异常（jsdom 里没有 #view，CI 上红过）
+  window.clearTimeout(popupWidthTimer)
+  popupWidthTimer = window.setTimeout(() => {
     const dom_view = document.getElementById('view')
+    // #view 是应用根容器（App.vue），组件卸载 / 测试环境里都不在，读它之前先判空
+    if (dom_view == null) return
     popupStyle.width = dom_view.clientWidth * 0.96 + 'px'
     popupStyle.maxHeight = dom_view.clientHeight * 0.65 + 'px'
   }, 50)
@@ -132,6 +138,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  window.clearTimeout(popupWidthTimer)
   document.removeEventListener('click', handleHide)
   window.removeEventListener('resize', setTagPopupWidth)
 })
