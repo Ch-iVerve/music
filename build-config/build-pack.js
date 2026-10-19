@@ -142,6 +142,10 @@ const linuxOptions = {
       'libatspi2.0-0 | libatspi2.0-0t64',
       'libuuid1',
       'libsecret-1-0',
+      // 桌面歌词「非置顶时永远在最底层」要靠 EWMH 的 `_NET_WM_STATE_BELOW`
+      // （Electron 没有置底 API），唯一可用通道是 wmctrl。缺了它只会降级成
+      // 普通窗口（点击仍会置前），所以列为依赖而不是硬性启动条件。
+      'wmctrl',
     ],
     // 默认的 "default" 在 Debian 策略里不是合法 section（lintian 会报）
     packageCategory: 'sound',

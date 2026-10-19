@@ -1,6 +1,7 @@
 import path from 'node:path'
+import { execFile } from 'node:child_process'
 import { BrowserWindow } from 'electron'
-import { debounce, getPlatform, isLinux, isWin } from '@common/utils'
+import { debounce, getPlatform, isLinux, isWin, log } from '@common/utils'
 import { applyWindowDrag, clampWindowBoundsToWorkArea, MIN_SIZE, type ResizeEdge, type WindowBounds } from '@common/utils/windowGeometry'
 import { createDragCoalescer } from './dragCoalescer'
 import { initWindowSize, minHeight, minWidth } from './utils'
@@ -108,6 +109,9 @@ const winEvent = () => {
     if (global.lx.appSetting['desktopLyric.isLock']) {
       browserWindow!.setIgnoreMouseEvents(true, { forward: !isLinux && global.lx.appSetting['desktopLyric.isHoverHide'] })
     }
+    // 非置顶时钉在最底层（Linux/EWMH；见 setAlwaysOnBottom 注释）。放在 show 之后：
+    // 窗口进 WM 的窗口列表后才收得到 `_NET_WM_STATE_BELOW`，太早调用会找不到窗口。
+    setAlwaysOnBottom(!global.lx.appSetting['desktopLyric.isAlwaysOnTop'])
     // linux下每次重开时貌似要重新设置置顶
     // if (isLinux && global.lx.appSetting['desktopLyric.isAlwaysOnTop']) {
     //   browserWindow!.setAlwaysOnTop(global.lx.appSetting['desktopLyric.isAlwaysOnTop'], 'screen-saver')
@@ -360,6 +364,64 @@ export const setAlwaysOnTop = (flag: boolean, level?: 'normal' | 'floating' | 't
   browserWindow.setAlwaysOnTop(flag, level, relativeLevel)
 }
 
+/**
+ * 非置顶态的「永远处于最后方」。
+ *
+ * Electron/Chromium 只暴露置顶（`_NET_WM_STATE_ABOVE`），没有置底 API；Linux 上要让窗口
+ * 固定在所有普通窗口之下，只能由 EWMH 客户端给窗口加 `_NET_WM_STATE_BELOW`（wmctrl 发
+ * ClientMessage，Chromium 二进制里没有这个状态的实现，实测 `strings` 零命中）。
+ *
+ * 本机实测（Cinnamon/Muffin，2026-10-19）：已加 below 的窗口被点击时只会拿走键盘焦点，
+ * 堆叠顺序反而沉到最底，不会被抬到任何普通窗口之上——正是「点到也不跑到前面来」。
+ * 注意焦点仍会切过去（EWMH 的 below 只管堆叠，不管焦点）。
+ *
+ * 降级：wmctrl 未安装时告警一次并退回普通窗口；Wayland 原生窗口没有 XID，wmctrl 同样会
+ * 失败，一并走这条分支。窗口刚 show 时可能还没进 WM 的窗口列表，失败按 200ms 重试。
+ */
+let belowQueue: Promise<void> = Promise.resolve()
+let isBelowWarned = false
+const runWmctrlBelow = async(win: Electron.BrowserWindow, xid: string, flag: boolean, retry: number): Promise<void> => new Promise(resolve => {
+  execFile('wmctrl', ['-i', '-r', xid, '-b', `${flag ? 'add' : 'remove'},below`], { timeout: 2000 }, (err) => {
+    if (!err) {
+      resolve()
+      return
+    }
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      if (!isBelowWarned) {
+        isBelowWarned = true
+        log.warn('[winLyric] wmctrl 未安装，桌面歌词非置顶时的置底行为已降级为普通窗口')
+      }
+      resolve()
+      return
+    }
+    if (retry > 0) {
+      setTimeout(() => {
+        // 窗口已关或被重建：旧 XID 的请求就地作废，别重试到发告警（新窗口会自己再设一次）
+        if (win !== browserWindow) {
+          resolve()
+          return
+        }
+        void runWmctrlBelow(win, xid, flag, retry - 1).then(resolve)
+      }, 200)
+      return
+    }
+    if (!isBelowWarned) {
+      isBelowWarned = true
+      log.warn('[winLyric] 设置 EWMH below 状态失败，桌面歌词非置顶时的置底行为已降级为普通窗口：', err.message)
+    }
+    resolve()
+  })
+})
+export const setAlwaysOnBottom = (flag: boolean) => {
+  if (!isLinux || !browserWindow) return
+  const win = browserWindow
+  const handle = win.getNativeWindowHandle()
+  if (handle.length < 4) return
+  const xid = `0x${handle.readUInt32LE(0).toString(16)}`
+  // 串行化：连续切换置顶时保证「后一次请求最后落地」，不会被上一条 wmctrl 反超
+  belowQueue = belowQueue.then(async() => runWmctrlBelow(win, xid, flag, 5))
+}
+
 export const getMainFrame = (): Electron.WebFrameMain | null => {
   if (!browserWindow) return null
   return browserWindow.webContents.mainFrame
@@ -375,7 +437,11 @@ export const alwaysOnTopTools: AlwaysOnTopTools = {
   timeout: null,
   setAlwaysOnTop(isLoop) {
     this.clearLoop()
-    setAlwaysOnTop(global.lx.appSetting['desktopLyric.isAlwaysOnTop'], 'screen-saver')
+    const isAlwaysOnTop = global.lx.appSetting['desktopLyric.isAlwaysOnTop']
+    // 置顶与置底互斥：先撤掉当前不该有的那一态，再按设置设另一态
+    if (isAlwaysOnTop) setAlwaysOnBottom(false)
+    setAlwaysOnTop(isAlwaysOnTop, 'screen-saver')
+    if (!isAlwaysOnTop) setAlwaysOnBottom(true)
     // console.log(isLoop)
     if (isLoop) this.startLoop()
   },
