@@ -73,15 +73,6 @@ export default {
       return Number.isFinite(lh) && lh > 0 ? lh : 16.8
     }
 
-    /** 量尺的逐行 rect（一行一个；空行没有 rect）。jsdom 没有 Range.getClientRects，返回空数组 */
-    const naturalRects = (): DOMRect[] => {
-      const el = measureEl.value
-      if (el == null) return []
-      const range = document.createRange()
-      range.selectNodeContents(el)
-      return typeof range.getClientRects == 'function' ? Array.from(range.getClientRects()) : []
-    }
-
     /** 全文的**视觉行数**：用高度算，不用 rect 个数——空行（原文里的空行分段很常见）
      *  只有行盒没有字符 rect，数 rect 会少算。 */
     const naturalLines = () => {
@@ -91,12 +82,16 @@ export default {
     }
 
     /** 第 `line` 行行首的字符偏移（在量尺上二分：找第一个落在该行顶的字符）。
-     *  拿不到行 rect（jsdom）或量尺还没挂上时退回全文末尾——测试只断言 DOM 结构，不影响真机。 */
+     *  ⚠️ 判据要用「几何行位」`量尺顶 + (line-1)*行高`，**不能数 rect**：
+     *  `Range.getClientRects()` 在换行符处会多出一个零宽 rect（实测同一行出现两条），
+     *  按 rect 下标取行会把目标行算早一行——按钮就会跑到第 2 行（2026-10-19 七里香真机）。
+     *  拿不到字符 rect（jsdom）或量尺还没挂上时退回全文末尾；测试只断言 DOM 结构。 */
     const lineStartOffset = (lineTop: number) => {
       const el = measureEl.value
       const node = el?.firstChild
       if (node == null || node.nodeType !== 3) return props.text.length
       const len = node.nodeValue?.length ?? 0
+      const lh = lineHeight()
       const topAt = (index: number) => {
         const range = document.createRange()
         range.setStart(node, index)
@@ -109,10 +104,14 @@ export default {
       while (lo < hi) {
         const mid = (lo + hi) >> 1
         const top = topAt(mid)
-        // null = 换行符之类没有盒子的字符，归它所在那一行（按「还没到下一行」处理）
-        if (top == null || top < lineTop - 0.5) lo = mid + 1
+        // 半行高容差：字符 rect 的顶 = 行盒顶 + 半行距，与几何行顶不同基准
+        if (top == null || top < lineTop - lh / 2) lo = mid + 1
         else hi = mid
       }
+      // 目标行是**空行**时，二分落到了下一行文字的首字符——回退一个换行符，让浮动块落在空行上
+      // （否则块会落到裁切线以下，按钮直接看不见）
+      const topAfter = topAt(lo)
+      if (lo > 0 && node.nodeValue?.[lo - 1] === '\n' && (topAfter == null || topAfter > lineTop + lh / 2)) lo--
       return lo
     }
 
@@ -120,12 +119,11 @@ export default {
       void nextTick(() => {
         const el = descEl.value
         if (el == null) return
-        const rects = naturalRects()
-        const total = rects.length > 0 ? naturalLines() : Math.max(1, Math.round(el.scrollHeight / lineHeight()))
-        // 第 lines 行行首的 y：优先取逐行 rect（量尺上的真实行盒），空行多时退回按行高推算
-        const targetTop = rects.length >= props.lines
-          ? rects[props.lines - 1].top
-          : (measureEl.value?.getBoundingClientRect().top ?? el.getBoundingClientRect().top) + (props.lines - 1) * lineHeight()
+        const lh = lineHeight()
+        const total = naturalLines() || Math.max(1, Math.round(el.scrollHeight / lh))
+        // 第 lines 行的**几何行位**（不是数 rect：换行符会多出零宽 rect，见 lineStartOffset 注释）
+        const measureTop = measureEl.value?.getBoundingClientRect().top ?? el.getBoundingClientRect().top
+        const targetTop = measureTop + (props.lines - 1) * lh
         isOverflow.value = total > props.lines
         if (!isOverflow.value || isOpen.value) {
           tailOffset.value = props.text.length
