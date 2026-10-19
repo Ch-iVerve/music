@@ -108,7 +108,10 @@ export default {
     /** 落位：
      *  - 收起态：块落在第 `lines` 行（正文被裁掉，末行就是它）；
      *  - 展开态：目标是**全文最后一行**。块贴右缘时会把末行挤下一行、`pre-line` 下还会顺着
-     *    后续行级联（实测 284 → 292），所以先粗定位到当前末行、再迭代到「正文不再长过块所在行」。
+     *    后续行级联，所以要迭代到「正文不再长过块所在行」。
+     *  ⚠️ 轮数不能小：级联长度跟**行宽**成正比，窗口越宽一次挤出的字越少（装好的包实测
+     *    1200 宽下 3 轮只走到 273 行、正文还有 290 行——块卡在正文中间）。这里给 40 轮上限，
+     *    正常几轮就收敛；到上限仍没追上时把块放到最新末行（宁可贴底，不能插在正文里）。
      *  两个状态都把块横画到本行文字右缘之后（`placeTailInline`）。 */
     const placeTail = (round = 0) => {
       void nextTick(() => {
@@ -120,15 +123,17 @@ export default {
           void nextTick(() => { placeTailInline(props.lines) })
           return
         }
-        tailLine.value = Math.max(tailLine.value, textLines())
-        void nextTick(() => {
-          const lines = textLines()
-          if (lines > tailLine.value && round < 3) {
-            placeTail(round + 1)
-            return
-          }
-          placeTailInline(tailLine.value)
-        })
+        const lines = textLines()
+        if (lines > tailLine.value && round < 40) {
+          tailLine.value = lines
+          // 强制一次布局：下一轮要量的是块落位之后的真实行数（只等 nextTick 时，
+          // 浏览器可能还没把新 margin-top 反映到排版上，会提前判定「追上了」）
+          void el.offsetHeight
+          placeTail(round + 1)
+          return
+        }
+        if (lines > tailLine.value) tailLine.value = lines
+        placeTailInline(tailLine.value)
       })
     }
 
@@ -147,10 +152,34 @@ export default {
       measure()
     }
 
-    // 行数跟着宽度变：展开态要把让位块挪到新的末行，收起态要重判「有没有被截断」
-    const handleResize = () => { measure() }
-    onMounted(() => { window.addEventListener('resize', handleResize) })
-    onBeforeUnmount(() => { window.removeEventListener('resize', handleResize) })
+    // 行数跟着宽度变：展开态要把让位块挪到新的末行，收起态要重判「有没有被截断」。
+    // ⚠️ 只监听 window.resize 不够：展开后整页出现滚动条，**正文宽度自己就会变**（装好的包
+    // 实测 1200 宽下从 273 行涨到 290 行），这次重排发生在落位循环之后，块就卡在正文中间。
+    // 所以用 ResizeObserver 盯正文盒子本身（宽度/高度一变就重新落位），window.resize 留着兜窗口缩放。
+    let observer: ResizeObserver | null = null
+    // 观察器回调里重新落位本身会改排版（进而再触发一次回调）——用一个「已排队」标志收敛成一次，
+    // 避免 ResizeObserver 的循环告警。落位函数是幂等的，多跑一次不会抖。
+    let resizeQueued = false
+    const handleResize = () => {
+      if (resizeQueued) return
+      resizeQueued = true
+      void nextTick(() => {
+        resizeQueued = false
+        measure()
+      })
+    }
+    onMounted(() => {
+      window.addEventListener('resize', handleResize)
+      if (typeof ResizeObserver == 'function' && descEl.value != null) {
+        observer = new ResizeObserver(handleResize)
+        observer.observe(descEl.value)
+      }
+    })
+    onBeforeUnmount(() => {
+      window.removeEventListener('resize', handleResize)
+      observer?.disconnect()
+      observer = null
+    })
 
     return { descEl, textEl, tailEl, isOpen, isOverflow, tailLine, handleToggle }
   },
