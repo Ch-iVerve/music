@@ -10,8 +10,8 @@ import { resolveLyricColors } from './lyricColors'
 describe('resolveLyricColors（只由主题派生）', () => {
   it('未播/已播/阴影三色全部是 `var(--color-*)` 主题引用', () => {
     const colors = resolveLyricColors()
-    expect(colors['--color-lyric-unplay']).toBe('var(--color-1000)')
-    expect(colors['--color-lyric-played']).toBe('var(--color-primary-dark-200)')
+    expect(colors['--color-lyric-unplay']).toBe('var(--color-primary-dark-200)')
+    expect(colors['--color-lyric-played']).toBe('var(--color-1000)')
     expect(colors['--color-lyric-shadow']).toContain('var(--color-000)')
   })
 

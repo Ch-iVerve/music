@@ -5,19 +5,20 @@
  * 要再开自定义色，请做成**主题字段**（让主题编辑器能改），不要再加一组用户设置。
  *
  * 主题派生值写成 `var(--color-*)` 间接引用（几个主题变量由 `window.setTheme` 写在 `:root` 上），
- * 于是换主题/切亮暗时 CSS 自己就跟着变了，不需要 JS 逐个重算颜色：
- * - 未播放行 → `--color-1000`：主题的字体色（深色主题偏白、浅色主题偏黑），与面板底色同源
- * - 当前播放行 → `--color-primary-dark-200`：主窗口歌词高亮行用的就是它
- *   （`renderer/components/layout/PlayDetail/LyricPlayer.vue:238`）——这套 primary-dark 在浅色主题里
- *   是压深的强调色、在深色主题里是提亮的强调色，两边都能在各自的面板上读出来。
- *   （别用 `--color-theme`：深色主题下它是 primary-light-900，本机实测 black 主题只有 rgb(59,59,59)，
+ * 于是换主题/切亮暗时 CSS 自己就跟着变了，不需要 JS 逐个重算颜色。
+ * ⚠️ 已播/未播两色与主窗口歌词（`LyricPlayer.vue`）**刻意相反**（2026-10-18 用户要求互换，
+ * 不要当笔误改回去）：
+ * - 未播放行 → `--color-primary-dark-200`：主题强调色
+ * - 当前播放行 / 已唱行 → `--color-1000`：主题字体色（深色主题偏白、浅色主题偏黑），与面板底色同源。
+ *   （互换前曾用 `--color-primary-dark-200` 标已播；别用 `--color-theme` 标任何一端：
+ *   深色主题下它是 primary-light-900，本机实测 black 主题只有 rgb(59,59,59)，
  *   压在深色面板上等于看不见。）
  * - 描边 → `--color-000`（字体色尺度的另一端）压到低透明度：文字亮则描边暗，反之亦然，
  *   所以切亮/暗主题时描边自动反向，不会出现「白字白描边」把对比度做坏
  */
 export const THEME_LYRIC_COLORS = {
-  '--color-lyric-unplay': 'var(--color-1000)',
-  '--color-lyric-played': 'var(--color-primary-dark-200)',
+  '--color-lyric-unplay': 'var(--color-primary-dark-200)',
+  '--color-lyric-played': 'var(--color-1000)',
   '--color-lyric-shadow': 'color-mix(in srgb, var(--color-000) 18%, transparent)',
 }
 
