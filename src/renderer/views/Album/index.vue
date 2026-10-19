@@ -1,5 +1,5 @@
 <template>
-  <div :class="$style.container">
+  <div :class="[$style.container, { [$style.descExpanded]: isDescOpen }]">
     <!-- 四个动作键搬到顶部工具栏搜索栏右侧（工单 03）：原来它们在 header 的第一行（工单 22 的位置），
          封面要等 36（键）+ 12（间距）= 48px 才出现——就是用户报的「上方有空白」。
          键的尺寸/间距/文案截断口径由 common/ToolbarActions.vue 统一给，本页不再写 .btnAction。
@@ -40,10 +40,10 @@
             <span v-if="detail.albumType">{{ $t('album__type') }}：{{ detail.albumType }}</span>
             <span v-if="detail.genre">{{ $t('album__genre') }}：{{ detail.genre }}</span>
           </p>
-          <p v-if="detail.desc" ref="descEl" :class="[$style.desc, { [$style.descOpen]: isDescOpen }]">{{ detail.desc }}</p>
-          <base-btn v-if="detail.desc && isDescOverflow" min :class="$style.descToggle" @click="isDescOpen = !isDescOpen">
-            {{ isDescOpen ? $t('album__desc_collapse') : $t('album__desc_expand') }}
-          </base-btn>
+          <!-- 简介：收起态 3 行，展开键跟在**末行行尾**（2026-10-19 用户定：原来独立一行的排法
+               按钮与文字脱节，否掉）。截断/展开/「只在真被截断时出键」都在共用件里；
+               `@toggle` 用来把页面根切成「简介展开态」（整页可滚 + 列表留最小高度） -->
+          <common-expandable-desc v-if="detail.desc" :text="detail.desc" @toggle="isDescOpen = $event" />
         </div>
       </div>
     </div>
@@ -75,7 +75,7 @@
 </template>
 
 <script lang="ts">
-import { computed, ref, watch, nextTick } from '@common/utils/vueTools'
+import { computed, ref, watch } from '@common/utils/vueTools'
 import { useRoute, useRouter } from '@common/utils/vueRouter'
 import usePlay from '@renderer/components/material/OnlineList/usePlay'
 import useMusicJump from '@renderer/utils/compositions/useMusicJump'
@@ -91,6 +91,10 @@ export default {
     const route = useRoute()
     const router = useRouter()
     const { detail, songs, headerLabel, initAlbum, loadSongPage } = useAlbum()
+
+    // 简介是否展开：页面根据此切成「简介展开态」（整页可滚 + 歌曲列表留最小高度，
+    // 否则简介铺开后列表被挤成 0 高，只剩标题），见模板里的 `@toggle` 与 `.descExpanded`
+    const isDescOpen = ref(false)
 
     // 播放复用在线列表的同一套逻辑。
     // ⚠️ 传歌曲区块对象本身（不是 `{ list: songs.list }`）：usePlay 存的是 props.list 的数组
@@ -153,20 +157,8 @@ export default {
       if (!mid) return
       void loadFavAlbumIds().catch(err => { console.log('[album] load fav ids', err) })
     }, { immediate: true })
-    // 专辑简介默认 3 行截断（.desc 的 mixin-ellipsis(3)），点按钮展开全文。
-    // 按钮只在**真的被截断**时出现：line-clamp 下 scrollHeight 仍是全文高度，
-    // 所以量 scrollHeight > clientHeight 就能判断（短简介不该出现一个点了没变化的按钮）。
-    const descEl = ref<HTMLElement | null>(null)
-    const isDescOpen = ref(false)
-    const isDescOverflow = ref(false)
-    const measureDesc = () => {
-      isDescOpen.value = false
-      void nextTick(() => {
-        const el = descEl.value
-        isDescOverflow.value = el != null && el.scrollHeight > el.clientHeight + 1
-      })
-    }
-    watch(() => detail.desc, measureDesc, { immediate: true })
+    // 专辑简介的截断 / 展开 / 溢出判断已下沉到共用件 `components/common/ExpandableDesc.vue`
+    // （歌手页同一套，2026-10-19）：这里只剩「把 desc 递进去」。
     // 专辑详情的歌手条目带 mid（tx/album.js 的 toSinger），据此跳歌手页
     const toSinger = (singer: { mid: string, name: string }) => {
       if (!singer.mid) return
@@ -192,9 +184,7 @@ export default {
       handleToggleFav,
       handleCopyAlbumLink,
       handleOpenAlbumInQq,
-      descEl,
       isDescOpen,
-      isDescOverflow,
     }
   },
 }
@@ -211,6 +201,10 @@ export default {
   color: var(--color-font);
   display: flex;
   flex-flow: column nowrap;
+  // 简介展开后可能比窗口高得多（实测「太阳之子」全文 283 行 / 约 4750px）：本页外壳是
+  // 「页头固定 + 列表自滚」、整页不滚，不给这里开口子的话正文尾部与「收起」键都到不了。
+  // 收起态内容正好 100%，不会冒出滚动条。
+  overflow-y: auto;
 }
 
 // 只剩「封面 + 简介」这一行（动作键搬到顶部工具栏了，工单 03）：不再需要纵向 flex，
@@ -274,23 +268,8 @@ export default {
     margin-right: 12px;
   }
 }
-.desc {
-  margin-top: 6px;
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--color-font-label);
-  .mixin-ellipsis(3);
-}
-// 展开态：解除 3 行截断（mixin 用的是 -webkit-box + line-clamp）
-.descOpen {
-  display: block;
-  overflow: visible;
-  -webkit-line-clamp: unset;
-}
-.descToggle {
-  margin-top: 4px;
-  align-self: flex-start;
-}
+// 简介的 `.desc` / `.descOpen` / `.descToggle` 三条样式随逻辑一起搬进共用件
+// `components/common/ExpandableDesc.vue`（末行行尾的按钮排法是那里的 `.wrap` 的 flex-end）
 // 四键的尺寸规则（工单 17 的 `.btnAction`、工单 22 的 `.actions`）已随动作键搬走，
 // 现在统一由 `components/common/ToolbarActions.vue` 的 `.actions button` 给：
 // 同高（搜索框那档 28.08px）+ 同 padding + 同 gap + 不换行 + 省略号，且不再做等分——
@@ -314,6 +293,11 @@ export default {
   flex: auto;
   min-height: 0;
   position: relative;
+}
+// 简介展开态：简介会铺满好几屏，`flex: auto` 的列表被挤成 0 高（只剩标题），
+// 给它一个最小高度——滚过简介后列表仍在，收起后又回到原来的「填满剩余空间」
+.descExpanded .list {
+  min-height: 320px;
 }
 .noitem {
   flex: auto;

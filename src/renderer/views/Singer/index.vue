@@ -1,5 +1,5 @@
 <template>
-  <div :class="$style.container">
+  <div :class="[$style.container, { [$style.descExpanded]: isDescOpen }]">
     <div :class="$style.header">
       <div :class="$style.avatarBox">
         <img v-if="detail.avatar" :class="$style.avatar" loading="lazy" decoding="async" :src="detail.avatar" alt="">
@@ -16,7 +16,11 @@
                ⚠️ 取不到（null）时整块不渲染（件内处理）：把「不知道」画成「未关注」是在撒谎。 -->
           <follow-singer-button :mid="mid" show-message />
         </p>
-        <p v-if="detail.desc" :class="$style.desc">{{ detail.desc }}</p>
+        <!-- 歌手简介：收起态 4 行，展开键跟在**末行行尾**（2026-10-19 用户要求与专辑页同一处理；
+             原来 4 行硬截断、没有展开入口，全文根本看不到）。
+             截断 / 展开 / 「只在真被截断时出键」都在共用件里；`@toggle` 让页面根切成
+             「简介展开态」（整页可滚 + tab 面板区留最小高度） -->
+        <common-expandable-desc v-if="detail.desc" :text="detail.desc" :lines="4" @toggle="isDescOpen = $event" />
       </div>
     </div>
     <!-- 返回键搬到顶部工具栏搜索栏右侧（工单 03）：页头只剩「头像 + 信息」两个 flex 子项。
@@ -108,6 +112,9 @@ export default {
     } = useSinger()
 
     const tab = ref<TabId>(normalizeTab(route.query.tab))
+    // 简介是否展开：页面据此切成「简介展开态」（整页可滚 + 面板区留最小高度，
+    // 否则简介铺开后 tab 面板被挤成 0 高），见模板里的 `@toggle` 与 `.descExpanded`
+    const isDescOpen = ref(false)
     // 页头与四个面板都按「路由上的歌手」取数；面板要的 mid 从这里传下去（单一来源，不再各自读路由）
     const mid = computed(() => String(route.query.mid ?? '').trim())
 
@@ -144,6 +151,7 @@ export default {
       headerLabel,
       isInfoLoading,
       mvPlayer,
+      isDescOpen,
       handleTabChange,
       handleBack,
       closeMv,
@@ -166,8 +174,11 @@ export default {
   color: var(--color-font);
   display: flex;
   flex-flow: column nowrap;
-  // 页头与 tab 栏固定，滚动交给面板自己（原来的页面级滚动容器已下移，见各面板的 .container）
-  overflow: hidden;
+  // 页头与 tab 栏固定、滚动交给面板自己（原来的页面级滚动容器已下移，见各面板的 .container）。
+  // 例外是简介**展开态**：全文可能比窗口高得多，那时必须让整页能滚，否则正文尾部与「收起」
+  // 键都到不了（2026-10-19 实查）。收起态内容正好 100%，不会冒出滚动条。
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .header {
@@ -215,13 +226,8 @@ export default {
     margin-right: 12px;
   }
 }
-.desc {
-  margin-top: 6px;
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--color-font-label);
-  .mixin-ellipsis(4);
-}
+// 简介的 `.desc` 样式随逻辑搬进共用件 `components/common/ExpandableDesc.vue`
+// （收起态行数由 `:lines="4"` 给；原来那条 `.mixin-ellipsis(4)` 就在那儿）
 // 原来还有一个 .actions（返回键）——返回键搬到顶部工具栏后整块删除（工单 03）
 .tabBar {
   flex: none;
@@ -238,6 +244,11 @@ export default {
   flex: auto;
   min-height: 0;
   position: relative;
+}
+// 简介展开态：简介会铺满好几屏，`flex: auto` 的面板区被挤成 0 高，
+// 给它一个最小高度——滚过简介后 tab 面板仍在（自己滚自己的），收起后回到原样
+.descExpanded .content {
+  min-height: 320px;
 }
 
 // 整页级空态（歌手不存在）：落在页面中部，别贴着顶部
