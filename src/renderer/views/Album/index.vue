@@ -1,5 +1,5 @@
 <template>
-  <div :class="[$style.container, { [$style.descExpanded]: isDescOpen }]">
+  <div :class="$style.container">
     <!-- 四个动作键搬到顶部工具栏搜索栏右侧（工单 03）：原来它们在 header 的第一行（工单 22 的位置），
          封面要等 36（键）+ 12（间距）= 48px 才出现——就是用户报的「上方有空白」。
          键的尺寸/间距/文案截断口径由 common/ToolbarActions.vue 统一给，本页不再写 .btnAction。
@@ -42,8 +42,8 @@
           </p>
           <!-- 简介：收起态 3 行，展开键跟在**末行行尾**（2026-10-19 用户定：原来独立一行的排法
                按钮与文字脱节，否掉）。截断/展开/「只在真被截断时出键」都在共用件里；
-               `@toggle` 用来把页面根切成「简介展开态」（整页可滚 + 列表留最小高度） -->
-          <common-expandable-desc v-if="detail.desc" :text="detail.desc" @toggle="isDescOpen = $event" />
+               列表是「全量铺开 + 页面滚动」，不再需要展开态切根样式 -->
+          <common-expandable-desc v-if="detail.desc" :text="detail.desc" />
         </div>
       </div>
     </div>
@@ -57,6 +57,8 @@
         {{ $t('album__songs') }}
         <span v-if="songs.total" :class="$style.count">{{ songs.total }}</span>
       </h3>
+      <!-- 专辑歌曲不再分页、不再有内部滚动条：全部一次铺在页面里（2026-10-19 用户要求），
+           整页高度不够时由页面根容器的滚动接住 -->
       <div :class="$style.list">
         <material-online-list
           :list="songs.list"
@@ -66,7 +68,7 @@
           :no-item="songs.noItemLabel"
           :list-id="queueListId"
           check-api-source
-          @toggle-page="handleTogglePage"
+          auto-height
           @play-list="handlePlayList"
         />
       </div>
@@ -90,11 +92,7 @@ export default {
   setup() {
     const route = useRoute()
     const router = useRouter()
-    const { detail, songs, headerLabel, initAlbum, loadSongPage } = useAlbum()
-
-    // 简介是否展开：页面根据此切成「简介展开态」（整页可滚 + 歌曲列表留最小高度，
-    // 否则简介铺开后列表被挤成 0 高，只剩标题），见模板里的 `@toggle` 与 `.descExpanded`
-    const isDescOpen = ref(false)
+    const { detail, songs, headerLabel, initAlbum } = useAlbum()
 
     // 播放复用在线列表的同一套逻辑。
     // ⚠️ 传歌曲区块对象本身（不是 `{ list: songs.list }`）：usePlay 存的是 props.list 的数组
@@ -121,9 +119,6 @@ export default {
       void initAlbum(mid)
     }, { immediate: true })
 
-    const handleTogglePage = (page: number) => {
-      loadSongPage(page)
-    }
     const handleBack = () => { router.back() }
 
     /**
@@ -175,7 +170,6 @@ export default {
       songs,
       headerLabel,
       queueListId,
-      handleTogglePage,
       handlePlayList,
       handleBack,
       toSinger,
@@ -184,7 +178,6 @@ export default {
       handleToggleFav,
       handleCopyAlbumLink,
       handleOpenAlbumInQq,
-      isDescOpen,
     }
   },
 }
@@ -288,16 +281,10 @@ export default {
   color: var(--color-font-label);
 }
 
-// material-online-list 内部是绝对定位 + 自滚动，父级要给出确定的高度
+// 歌曲列表全量铺开（2026-10-19）：不限高、不滚动，高度由内容撑开；页面根容器负责整页滚动
 .list {
-  flex: auto;
-  min-height: 0;
+  flex: none;
   position: relative;
-}
-// 简介展开态：简介会铺满好几屏，`flex: auto` 的列表被挤成 0 高（只剩标题），
-// 给它一个最小高度——滚过简介后列表仍在，收起后又回到原来的「填满剩余空间」
-.descExpanded .list {
-  min-height: 320px;
 }
 .noitem {
   flex: auto;

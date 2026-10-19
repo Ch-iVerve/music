@@ -5,7 +5,8 @@ import music from '@renderer/utils/musicSdk'
 import { appSetting } from '@renderer/store/setting'
 
 /**
- * 专辑页（M5）取数：详情 + 歌曲分页。
+ * 专辑页（M5）取数：详情 + **整张专辑的全部歌曲**（2026-10-19 起不再分页：用户要求
+ * 歌曲全部铺在页面里、不要内部滚动）。
  *
  * 三个注意点：
  *   1. 🔴 **歌曲必须过 `toNewMusicInfo`**：数据层给的是老式平铺对象，UI 侧要新式 meta 模型
@@ -70,8 +71,7 @@ const songs = reactive<{
 /** 头部区块的文案（加载中/失败/不存在）；有值时页面不渲染歌曲列表，避免同一句话显示两遍。 */
 const headerLabel = ref('')
 
-// 当前专辑 id：等详情与歌曲的首屏都回来后再对一次，防止快速切专辑时旧结果覆盖新结果
-let currentId = ''
+// 请求键：等详情与歌曲回来后再对一次，防止快速切专辑时旧结果覆盖新结果
 let detailKey = ''
 let songKey = ''
 
@@ -115,20 +115,41 @@ const loadDetail = async(id: string) => {
   }
 }
 
-const loadSongs = async(id: string, page = 1) => {
-  const key = `album_songs__${id}__${page}`
+/** 一页拉多少条（内部翻页用，不是界面分页）：接口按 num 返回，取 100 减少往返次数。 */
+const FETCH_PAGE_SIZE = 100
+
+/**
+ * 拉**整张专辑**的歌曲（2026-10-19 用户要求：专辑歌曲不分页、全部铺在页面里）。
+ *
+ * 接口只按 `begin/num` 分页返回，所以这里按 100 条一页循环到 `totalNum` 为止；
+ * 单次失败不清空已拿到的部分——直接抛给外层报错（与原来单页失败的处理一致）。
+ */
+const fetchAllSongs = async(id: string) => {
+  let list: any[] = []
+  let total = 0
+  for (let page = 1; page <= 50; page++) {
+    const res = await music.tx.album.getAlbumSongs(id, page, FETCH_PAGE_SIZE)
+    const chunk = res?.list ?? []
+    total = Number(res?.total ?? chunk.length)
+    list = list.concat(chunk)
+    // 拿够了、或这一页没数据（接口提前到底）就停——后者防 total 虚高时死循环
+    if (list.length >= total || chunk.length === 0) break
+  }
+  return { list, total: total || list.length }
+}
+
+const loadSongs = async(id: string) => {
+  const key = `album_songs__${id}`
   songKey = key
   songs.noItemLabel = t('list__loading')
-  // 每页条数现读设置（`list.pageSize`）：改完设置下次进页 / 翻页生效，不必重启
-  const pageSize = getPageSize(appSetting)
   try {
-    const res = await music.tx.album.getAlbumSongs(id, page, pageSize)
+    const res = await fetchAllSongs(id)
     if (songKey !== key) return
-    const list = toOnlineSongs(res?.list ?? [])
+    const list = toOnlineSongs(res.list)
     songs.list.splice(0, songs.list.length, ...list)
-    songs.total = Number(res?.total ?? list.length)
-    songs.page = page
-    songs.limit = pageSize
+    songs.total = res.total
+    songs.page = 1
+    songs.limit = list.length || res.total
     songs.noItemLabel = list.length ? '' : t('no_item')
   } catch (err: any) {
     if (songKey !== key) return
@@ -138,10 +159,9 @@ const loadSongs = async(id: string, page = 1) => {
   }
 }
 
-/** 进入/切换专辑：详情与第 1 页歌曲并发（各自 try/catch，失败不影响对方）。 */
+/** 进入/切换专辑：详情与整张专辑歌曲并发（各自 try/catch，失败不影响对方）。 */
 const initAlbum = async(value: unknown) => {
   const id = String(value ?? '').trim()
-  currentId = id
   if (!id) {
     // 路由没带 mid：不发请求，直接给「不存在」文案（数据层对空 id 会抛"缺少专辑 id"）
     Object.assign(detail, emptyDetail())
@@ -150,14 +170,10 @@ const initAlbum = async(value: unknown) => {
     songs.noItemLabel = t('album__not_found')
     return
   }
-  await Promise.all([loadDetail(id), loadSongs(id, 1)])
+  await Promise.all([loadDetail(id), loadSongs(id)])
 }
 
-/** 翻页（只动歌曲，详情不用重拉）。 */
-const loadSongPage = (page: number) => {
-  if (!currentId) return
-  void loadSongs(currentId, page)
-}
+/** `getPageSize` 现在只被 clearSongs 用（保留设置口径；本项目已不分页）。 */
 
 export default () => {
   return {
@@ -165,6 +181,5 @@ export default () => {
     songs,
     headerLabel,
     initAlbum,
-    loadSongPage,
   }
 }

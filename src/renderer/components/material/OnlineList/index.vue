@@ -1,5 +1,5 @@
 <template>
-  <div :class="$style.songList">
+  <div :class="[$style.songList, { [$style.autoHeight]: autoHeight }]">
     <!-- <transition enter-active-class="animated-fast fadeIn" leave-active-class="animated-fast fadeOut"> -->
     <div :class="$style.list">
       <div class="thead">
@@ -25,7 +25,7 @@
       </div>
       <div :class="$style.content">
         <div v-show="!noItem" ref="dom_listContent" :class="$style.content">
-          <base-virtualized-list v-if="actionButtonsVisible" ref="listRef" :list="list" key-name="id" :item-height="listItemHeight" container-class="scroll" content-class="list" @contextmenu.capture="handleListRightClick">
+          <base-virtualized-list v-if="actionButtonsVisible" ref="listRef" :auto-height="autoHeight" :list="list" key-name="id" :item-height="listItemHeight" container-class="scroll" content-class="list" @contextmenu.capture="handleListRightClick">
             <template #default="{ item, index }">
               <div
                 class="list-item" :class="[{ [$style.active]: playingRowIndex === index }, { selected: rightClickSelectedIndex == index }, { active: selectedList.includes(item) }, { disabled: isUnavailableRow(item) }]"
@@ -70,12 +70,12 @@
               </div>
             </template>
             <template #footer>
-              <div :class="$style.pagination">
+              <div v-if="!autoHeight" :class="$style.pagination">
                 <material-pagination :count="total" :limit="limit" :page="page" @btn-click="$emit('togglePage', $event)" />
               </div>
             </template>
           </base-virtualized-list>
-          <base-virtualized-list v-else ref="listRef" :list="list" key-name="id" :item-height="listItemHeight" container-class="scroll" content-class="list" @contextmenu.capture="handleListRightClick">
+          <base-virtualized-list v-else ref="listRef" :auto-height="autoHeight" :list="list" key-name="id" :item-height="listItemHeight" container-class="scroll" content-class="list" @contextmenu.capture="handleListRightClick">
             <template #default="{ item, index }">
               <div
                 class="list-item" :class="[{ [$style.active]: playingRowIndex === index }, { selected: rightClickSelectedIndex == index }, { active: selectedList.includes(item) }, { disabled: isUnavailableRow(item) }]"
@@ -126,7 +126,7 @@
               </div>
             </template>
             <template #footer>
-              <div :class="$style.pagination">
+              <div v-if="!autoHeight" :class="$style.pagination">
                 <material-pagination :count="total" :limit="limit" :page="page" @btn-click="$emit('togglePage', $event)" />
               </div>
             </template>
@@ -215,6 +215,15 @@ export default {
     listId: {
       type: String,
       default: '',
+    },
+    /**
+     * 全量展开（2026-10-19 用户要求：专辑歌曲不分页、全部铺在页面里，不要内部滚动条）。
+     * 置 true 时：不限高、一次渲染全部行、隐藏分页；高度由页面自己滚。
+     * ⚠️ 没有虚拟化，行数几百时是拿性能换「不滚动」——只给确实需要全展开的页面用。
+     */
+    autoHeight: {
+      type: Boolean,
+      default: false,
     },
   },
   emits: ['show-menu', 'play-list', 'togglePage', 'remove-music'],
@@ -436,6 +445,22 @@ export default {
   display: flex;
   flex-flow: column nowrap;
   position: relative;
+}
+// 全量展开（专辑页歌曲列表）：不占固定高、不出内部滚动条，所有行铺开，页面自己滚
+.songList.autoHeight {
+  height: auto;
+  overflow: visible;
+
+  .list {
+    position: static;
+    height: auto;
+  }
+
+  .content {
+    flex: none;
+    height: auto;
+    min-height: 0;
+  }
 }
 
 .list {

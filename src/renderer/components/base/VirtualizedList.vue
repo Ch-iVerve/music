@@ -4,7 +4,7 @@
     ref="dom_scrollContainer"
     :class="containerClass"
     tabindex="0"
-    style="outline: none; height: 100%; overflow-y: auto; position: relative; display: block; contain: strict;"
+    :style="containerStyle"
   >
     <component :is="contentEl" :class="contentClass" :style="contentStyle">
       <div v-for="item in views" :key="item.key" :style="item.style">
@@ -124,6 +124,15 @@ export default {
       type: Array,
       required: true,
     },
+    /**
+     * 全量展开模式（专辑页歌曲列表用）：不限高、不出内部滚动条，所有行一次渲染，
+     * 高度由父级页面自己滚（2026-10-19 用户要求「全部铺在页面里，不要滚动」）。
+     * ⚠️ 行数多时（几百条）没有虚拟化，是拿性能换「不滚动」——只给确实需要全展开的页面用。
+     */
+    autoHeight: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: ['scroll'],
   setup(props, { emit }) {
@@ -177,6 +186,15 @@ export default {
     const updateView = (top) => {
       const el = dom_scrollContainer.value
       if (isUnmounted || !el) return
+      // 全量展开：一次渲染所有行（没有内部滚动，也就没有「可视区间」可言）
+      if (props.autoHeight) {
+        if (startIndex !== 0 || endIndex !== props.list.length - 1) {
+          views.value = createList(0, props.list.length)
+          startIndex = 0
+          endIndex = props.list.length - 1
+        }
+        return
+      }
       // const currentScrollTop = this.$refs.dom_scrollContainer.scrollTop
       const currentScrollTop = top ?? el.scrollTop
       const itemHeight = props.itemHeight
@@ -288,6 +306,14 @@ export default {
       return style
     })
 
+    /**
+     * 容器样式。全量展开模式下不能给固定高度 / 内部滚动 / `contain: strict`
+     * （size containment 会让 `height: auto` 直接塌成 0），高度交给内容撑开。
+     */
+    const containerStyle = computed(() => props.autoHeight
+      ? { outline: 'none', position: 'relative', display: 'block' }
+      : { outline: 'none', height: '100%', overflowY: 'auto', position: 'relative', display: 'block', contain: 'strict' })
+
     const handleReset = list => {
       cachedList = Array(list.length)
       startIndex = -1
@@ -368,6 +394,7 @@ export default {
       views,
       dom_scrollContainer,
       contentStyle,
+      containerStyle,
       scrollTo,
       scrollToIndex,
       getScrollTop,
