@@ -1,6 +1,9 @@
 <template>
   <teleport to="#root">
-    <ul ref="dom_menu" :class="$style.list" :style="menuStyles" role="toolbar" :aria-hidden="!modelValue">
+    <!-- inert(收起时):菜单收起只有 opacity+pointerEvents,不把子项移出 Tab 序——
+         键盘会掉进看不见的菜单项(2026-10-25 UI 审查实机踩到);inert 连无障碍树一起摘,
+         也不打断收起过渡(visibility:hidden 会瞬间裁掉淡出) -->
+    <ul ref="dom_menu" :class="$style.list" :style="menuStyles" role="toolbar" :aria-hidden="!modelValue" :inert="!modelValue">
       <li
         v-for="item in menus"
         v-show="!item.hide"

@@ -1,6 +1,6 @@
 <template>
   <teleport to="#root">
-    <div ref="dom_menu" :class="$style.container" :style="menuStyles" :aria-hidden="!modelValue">
+    <div ref="dom_menu" :class="$style.container" :style="menuStyles" :aria-hidden="!modelValue" :inert="!modelValue">
       <!-- 歌词对齐（2026-09-23 从注释里放开）：上游把这一整块注释掉了，于是
            「在歌词上切对齐」这个动作在界面上根本不存在 —— 用户只能去设置里改，
            而设置里又有「播放详情页歌词」与「桌面歌词」两份，很容易改错地方（用户实测踩到）。

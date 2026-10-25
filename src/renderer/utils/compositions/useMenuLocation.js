@@ -31,6 +31,9 @@ export default ({ visible, location, onHide }) => {
     const listWidth = dom_menu.value.clientWidth
     const listHeight = dom_menu.value.clientHeight
     const dom_container_parant = dom_menu.value.offsetParent
+    // offsetParent 为 null(祖先 display:none / 元素未挂载)时没法夹边界:原样返回零偏移,
+    // 落点交给调用方(handleSetPosition 已保证落在容器内侧)
+    if (!dom_container_parant) return `${0}px, ${0}px`
     const containerWidth = dom_container_parant.clientWidth
     const containerHeight = dom_container_parant.clientHeight
     const offsetWidth = containerWidth - left - listWidth
