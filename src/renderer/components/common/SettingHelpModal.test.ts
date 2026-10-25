@@ -11,7 +11,7 @@ import MyMusicSourceGroup from '@renderer/views/Setting/components/sections/my_m
 import zhCn from '@root/lang/zh-cn.json'
 import SettingHelpIcon from './SettingHelpIcon.vue'
 import SettingHelpModal from './SettingHelpModal.vue'
-import { closeSettingHelp, openSettingHelp } from './useSettingHelp'
+import { closeSettingHelp, helpVisible, openSettingHelp } from './useSettingHelp'
 
 /**
  * 设置页 `?` 帮助：点击弹窗（2026-09-24 用户裁定「设置页的 `?` 帮助图标做成点击弹窗」）。
@@ -131,18 +131,28 @@ describe('设置页 `?` → 帮助弹窗', () => {
     expect(modal.findAll('.modal').length).toBe(1)
   })
 
-  it('`Esc` 关得掉（`material-modal` 自己没有键盘能力，这一条由弹窗自己实现）', async() => {
+  it('`Esc` 关得掉（Esc 由 material-modal 统一处理，2026-10-25 起）', async() => {
+    // 真件才有 Esc（替身不渲染键盘逻辑）；teleport 目标先建（同下面的真件用例）。
+    // 断到 useSettingHelp 的状态为止：transition 在 jsdom 里不走 after-leave，DOM 文案收不干净
+    const view = document.createElement('div')
+    view.id = 'view'
+    document.body.appendChild(view)
+
     const section = mountSection()
-    const modal = mountModal()
+    const modal = mountModal({})
 
     await helpIcon(section, 'setting__list_page_size_tip').trigger('click')
     await nextTick()
-    expect(modal.text()).toContain(t('setting__list_page_size_tip'))
+    await nextTick()
+    expect(helpVisible.value).toBe(true)
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
     await nextTick()
 
-    expect(modal.text()).not.toContain(t('setting__list_page_size_tip'))
+    expect(helpVisible.value, 'Esc 后帮助弹窗状态必须收起').toBe(false)
+
+    modal.unmount()
+    view.remove()
   })
 
   it('调用点没给设置项名时，标题退到「帮助」', async() => {

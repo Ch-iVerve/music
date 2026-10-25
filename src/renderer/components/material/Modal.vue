@@ -167,14 +167,28 @@ export default {
       this.handleShowChange(val)
     },
   },
+  created() {
+    // add/remove 必须同一个函数引用;箭头函数也绕开 eslint 的 unbound-method
+    // (Options API 方法经 Vue 自动绑定,规则不认这种取引用写法)
+    this.keydownHandler = event => this.handleKeyDown(event)
+  },
   mounted() {
     if (this.show) this.handleShowChange(true)
     this.setRandomAnimation()
   },
   beforeUnmount() {
+    document.removeEventListener('keydown', this.keydownHandler)
     this.removeClass()
   },
   methods: {
+    // Esc 关弹窗(2026-10-25 UI 审查 P1;自维护补丁,上游没有——分歧记录见 docs/adr/0014):
+    // 事件必须挂 document,弹窗是 teleport 走的,挂自家根节点收不到(SettingHelpModal 的旧实现实证过)。
+    // 嵌套弹窗只关栈顶:modalCount 是模块级嵌套计数,本实例开着但不是最后开的就不响应。
+    handleKeyDown(event) {
+      if (event.key != 'Escape' || !this.showModal) return
+      if (this.modalCount !== modalCount) return
+      this.close()
+    },
     handleShowChange(val) {
       if (val) {
         // const dom = document.getElementById(this.teleport)
@@ -184,6 +198,7 @@ export default {
         this.setRandomAnimation()
         this.modalCount = ++modalCount
         this.showModal = true
+        document.addEventListener('keydown', this.keydownHandler)
         void nextTick(() => {
           const node = this.$refs.dom_container.parentNode
           if (!node.classList.contains('show-modal')) {
@@ -194,6 +209,7 @@ export default {
         })
       } else {
         if (modalCount > 0) this.modalCount = --modalCount
+        document.removeEventListener('keydown', this.keydownHandler)
         this.removeClass()
         this.showContent = false
       }

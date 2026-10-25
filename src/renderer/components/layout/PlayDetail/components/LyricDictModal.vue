@@ -28,8 +28,6 @@
 </template>
 
 <script>
-import { onBeforeUnmount, watch } from '@common/utils/vueTools'
-
 /**
  * 歌词词典（双击歌词里的词查释义）弹窗。
  *
@@ -38,8 +36,7 @@ import { onBeforeUnmount, watch } from '@common/utils/vueTools'
  *   播放详情页是 `#container` 里的整屏浮层（z-index 10，见 `PlayDetail/index.vue`），
  *   `#root` 才能压住它并让 `#root.show-modal > .view-container` 的压暗生效。
  * - `bg-close` + 底部「关闭」键：弹窗占满屏幕，必须有明确的出口。
- * - **Esc 关弹窗要自己听**：`material-modal` 没有键盘能力（2026-09-24 实查，全仓只有
- *   `SettingHelpModal` 自己处理了 Esc）。键事件挂 document —— 弹窗是 teleport 走的，挂自己根节点收不到。
+ * - Esc 关闭由 `material-modal` 统一处理（2026-10-25 起，此前本组件自建 document 监听，已删）。
  */
 export default {
   name: 'LyricDictModal',
@@ -63,24 +60,11 @@ export default {
   },
   emits: ['update:show'],
   setup(props, { emit }) {
+    // Esc 关闭由 material-modal 统一处理(2026-10-25 起,自建的 document 监听已删——见 docs/adr/0014);
+    // 本组件的 @close 由 material-modal 的 Esc / ✕ 都会触发,统一走 update:show 收口。
     const handleClose = () => {
       emit('update:show', false)
     }
-    const handleKeyDown = (event) => {
-      if (event.key != 'Escape' || !props.show) return
-      handleClose()
-    }
-    // 只在打开期间监听：关掉之后不该还留着 listener（同 SettingHelpModal）。
-    // `immediate` 不能省：弹窗带着 `show=true` 挂载时（父组件重挂）不跑一次回调就没有 listener。
-    const stopWatch = watch(() => props.show, show => {
-      if (show) document.addEventListener('keydown', handleKeyDown)
-      else document.removeEventListener('keydown', handleKeyDown)
-    }, { immediate: true })
-
-    onBeforeUnmount(() => {
-      stopWatch()
-      document.removeEventListener('keydown', handleKeyDown)
-    })
 
     return {
       handleClose,

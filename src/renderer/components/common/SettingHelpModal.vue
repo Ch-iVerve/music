@@ -11,29 +11,14 @@ material-modal(:show="helpVisible" bg-close teleport="#view" max-width="60%" @cl
 </template>
 
 <script>
-import { onBeforeUnmount, watch } from '@common/utils/vueTools'
+import { onBeforeUnmount } from '@common/utils/vueTools'
 import { helpLabel, helpText, helpVisible, closeSettingHelp } from './useSettingHelp'
 
-/** Esc 关弹窗：`material-modal` 本身**没有**键盘能力（2026-09-24 实查，全仓无 Escape 处理），
- *  所以在这里自己听——键事件挂在 document 上（弹窗是 teleport 走的，挂在自己根节点上收不到）。 */
-const handleKeyDown = (event) => {
-  if (event.key != 'Escape' || !helpVisible.value) return
-  closeSettingHelp()
-}
-
+// Esc 关闭由 material-modal 统一处理(2026-10-25 起,原来自建的 document 监听已删——见 docs/adr/0014)。
 export default {
   name: 'SettingHelpModal',
   setup() {
-    // 只在打开期间监听：常驻监听会让「Esc」在弹窗没开时也走一遍判断（无害但没必要），
-    // 更重要的是关掉之后 listener 不该还在
-    const stopWatch = watch(helpVisible, visible => {
-      if (visible) document.addEventListener('keydown', handleKeyDown)
-      else document.removeEventListener('keydown', handleKeyDown)
-    })
-
     onBeforeUnmount(() => {
-      stopWatch()
-      document.removeEventListener('keydown', handleKeyDown)
       // 页面切走时状态要清掉：状态是模块级的，留着会在切回设置页时凭空弹出来
       closeSettingHelp()
     })
