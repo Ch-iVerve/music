@@ -1,6 +1,8 @@
 <template>
   <material-modal :show="show" :max-width="'86%'" :max-height="'92%'" teleport="#view" @close="handleClose">
-    <div :class="$style.container">
+    <!-- class="scroll"：矮窗口下整弹窗自滚（见样式 .container 的注释），滚动条走全局细条样式
+         （同 Album/index.vue 的说明） -->
+    <div class="scroll" :class="$style.container">
       <div :class="$style.videoBox">
         <video
           v-if="url"

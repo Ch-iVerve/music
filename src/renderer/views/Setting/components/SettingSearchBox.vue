@@ -14,7 +14,8 @@
       svg(:class="$style.clearIcon" version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" width="100%" viewBox="0 0 24 24" space="preserve")
         use(xlink:href="#icon-window-close")
   //- 关键词为空就不显示结果区：没输入 ≠ 无结果
-  ul(v-if="keyword" :class="$style.list")
+  //- class="scroll"：结果多时自滚，滚动条走全局细条样式（同 Album/index.vue 的说明）
+  ul.scroll(v-if="keyword" :class="$style.list")
     li(v-for="hit in hits" :key="hitKey(hit)")
       button(type="button" :class="$style.item" @click="emit('select', hit)") {{ hitLabel(hit) }}
     li(v-if="!hits.length" :class="$style.empty") {{ t('setting__search_no_result') }}

@@ -1,5 +1,6 @@
 <template>
-  <div :class="[$style.container, { [$style.descExpanded]: isDescOpen }]">
+  <!-- class="scroll"：简介展开态整页自滚，滚动条走全局细条样式（同 Album/index.vue 的说明） -->
+  <div class="scroll" :class="[$style.container, { [$style.descExpanded]: isDescOpen }]">
     <div :class="$style.header">
       <div :class="$style.avatarBox">
         <img v-if="detail.avatar" :class="$style.avatar" loading="lazy" decoding="async" :src="detail.avatar" alt="">

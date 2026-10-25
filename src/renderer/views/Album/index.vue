@@ -1,5 +1,9 @@
 <template>
-  <div :class="$style.container">
+  <!-- class="scroll"：整页自滚容器的滚动条走全局细条样式（跟随主题变量）。
+       不挂的话是 Chromium 原生滚动条——白轨道+灰滑块+箭头，深色主题下刺眼（用户截图反馈）。
+       .scroll 自带 overflow: auto，与本页的 overflow-y: auto 对本页布局等价（内容不会横向溢出），
+       两者谁生效都一样。 -->
+  <div class="scroll" :class="$style.container">
     <!-- 四个动作键搬到顶部工具栏搜索栏右侧（工单 03）：原来它们在 header 的第一行（工单 22 的位置），
          封面要等 36（键）+ 12（间距）= 48px 才出现——就是用户报的「上方有空白」。
          键的尺寸/间距/文案截断口径由 common/ToolbarActions.vue 统一给，本页不再写 .btnAction。
