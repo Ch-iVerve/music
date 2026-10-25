@@ -403,8 +403,19 @@ button, input, textarea, a {
 
 input, textarea {
   &::placeholder {
-    color: var(--color-font-label);
+    // 2026-10-25 UI 审查(P2):label 档(450)在浅色内容底上实测 ~2.8:1,不达 4.5:1;
+    // 650 全部 15 个主题都有定义、实测 ~5:1,仍比正文(850)浅一档,层级不丢
+    color: var(--color-650);
   }
+}
+
+// 键盘可达(2026-10-25 UI 审查 P1):全局焦点环,只在键盘聚焦时出现,鼠标点击不出框。
+// 各组件的 `outline: none`(含内联样式)是给鼠标用的,保留不动;`!important` 压过
+// 组件级与内联的普通声明(author !important > 内联),免得逐组件补规则。
+// 先例:RadarCarousel.vue 的 .stage:focus-visible(同色同宽)。
+:focus-visible {
+  outline: 2px solid var(--color-primary) !important;
+  outline-offset: 2px;
 }
 ::selection {
   color: var(--color-primary-dark-500-alpha-200);

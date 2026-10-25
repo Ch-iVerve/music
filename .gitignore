@@ -80,6 +80,9 @@ src/**/*-internal.js
 # 本地工单与探索笔记：只留本机，不入公开历史（2026-09-24 用户定；历史已用 git filter 重写去掉）
 .scratch/
 
+# impeccable 审查快照（impeccable skill 的落盘产物，同 .scratch/ 口径只留本机）
+.impeccable/
+
 # 验收脚本与留档产物：放**仓库目录内**（跟着仓库走，不像 /tmp 那样会丢），但**不入公开树**
 # （2026-09-25 用户定：「收进仓库但是要加入忽略」）。约定见 scripts/verify/README.md
 scripts/verify/

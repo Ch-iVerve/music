@@ -51,8 +51,9 @@ import NavBar from './NavBar.vue'
   box-sizing: border-box;
   padding: 4px 2px 0;
   height: 50px;
-  color: var(--color-nav-font);
-  opacity: .85;
+  // 字标用主色深一档而不是「主色 + 85% 透明」:透明合成的实测对比度 3.1:1,不达 4.5:1
+  // (2026-10-25 UI 审查;token 按主题派生,不写死色值)
+  color: var(--color-primary-dark-100);
   flex: none;
   text-align: center;
   display: flex;
@@ -65,16 +66,18 @@ import NavBar from './NavBar.vue'
   // -webkit-app-region: no-drag;
 }
 .logoBrand {
-  font-size: 10px;
+  // 10px 是检测器 undersized-ui-text 的判据线,+1px 仍放得下两行
+  font-size: 11px;
   font-weight: bold;
   line-height: 1.2;
 }
 .logoSub {
   // 副行做字距展开的小字，像唱片厂牌的行标
-  font-size: 8px;
+  // 8px 同样过小;颜色 450 档对比度 ~2.5:1,提到 700 档(≈5.4:1),仍比主行浅
+  font-size: 9px;
   letter-spacing: .18em;
   line-height: 1.4;
-  color: var(--color-font-label);
+  color: var(--color-700);
 }
 
 </style>
