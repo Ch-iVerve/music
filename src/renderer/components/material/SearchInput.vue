@@ -5,7 +5,7 @@
         <input
           ref="dom_input"
           v-model.trim="text"
-          :placeholder="placeholder"
+          :placeholder="placeholder || $t('search__placeholder')"
           @focus="handleFocus"
           @blur="handleBlur"
           @input="$emit('update:modelValue', text)"
@@ -57,7 +57,8 @@ export default {
   props: {
     placeholder: {
       type: String,
-      default: 'Search for something...',
+      // 空=回退 i18n(见模板)。写死英文串会让 zh-CN 顶栏出现英文占位(2026-10-25 UI 审查 P2)
+      default: '',
     },
     list: {
       type: Array,

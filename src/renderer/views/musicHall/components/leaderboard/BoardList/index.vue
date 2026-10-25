@@ -1,7 +1,10 @@
 <template>
   <ul ref="dom_lists_list" class="scroll" :class="$style.listsContent">
     <!-- 榜单列表取不到时不能只留空左栏：复用既有的 list__load_failed（store 的歌单/榜单两处同款），不自造新 key -->
-    <li v-if="isLoadFailed" :class="$style.loadFailed">{{ $t('list__load_failed') }}</li>
+    <li v-if="isLoadFailed" :class="$style.loadFailed">
+      {{ $t('list__load_failed') }}
+      <button type="button" :class="$style.retryBtn" @click="loadBoards(source)">{{ $t('list__retry') }}</button>
+    </li>
     <li
       v-for="(item, index) in list"
       :key="item.id" :class="[$style.listsItem, { [$style.active]: item.id == boardId }, { [$style.clicked]: rightClickItemIndex == index }]"
@@ -83,7 +86,8 @@ const handleMenuClick = (action) => {
 }
 
 
-watch(() => props.source, async(source) => {
+// 取数从 watch 体里提出来:失败态的「重试」键(2026-10-25 UI 审查 P1)与 watch 走同一条路
+const loadBoards = async(source) => {
   // const source = (await getLeaderboardSetting()).source as LX.OnlineSource
   let boardList = boards[source]
   if (boardList == null) {
@@ -107,6 +111,10 @@ watch(() => props.source, async(source) => {
   isLoadFailed.value = false
   list.splice(0, list.length, ...boardList.list)
   if (!props.boardId && boardList.list.length) handleToggleList(boardList.list[0].id)
+}
+
+watch(() => props.source, source => {
+  void loadBoards(source)
 }, {
   immediate: true,
 })
@@ -131,6 +139,22 @@ defineExpose({ hideMenu: handleMenuClick })
   font-size: 13px;
   text-align: center;
   color: var(--color-font-label);
+}
+.retryBtn {
+  display: block;
+  margin: 10px auto 0;
+  padding: 4px 18px;
+  border: 1px solid var(--color-primary-alpha-900);
+  border-radius: 3px;
+  background-color: transparent;
+  color: var(--color-primary-font);
+  cursor: pointer;
+  transition: @transition-fast;
+  transition-property: background-color, color;
+
+  &:hover {
+    background-color: var(--color-button-background-hover);
+  }
 }
 .listsItem {
   position: relative;

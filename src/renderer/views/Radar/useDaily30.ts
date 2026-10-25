@@ -39,6 +39,7 @@ const daily = reactive<RadarBlock>({
   hasMore: false,
   isLoading: false,
   moreError: '',
+  isLoadFailed: false,
 })
 
 const isInited = ref(false)
@@ -55,6 +56,7 @@ const loadDaily30 = async() => {
   const key = ++dailyKey
   daily.isLoading = true
   daily.moreError = ''
+  daily.isLoadFailed = false
   daily.noItemLabel = t('list__loading')
   try {
     const res = await music.tx.songList.getListDetailByCgi(DAILY_30_TID, 1, DAILY_30_NUM)
@@ -69,6 +71,7 @@ const loadDaily30 = async() => {
     daily.page = 1
     daily.hasMore = false
     daily.noItemLabel = daily.list.length ? '' : t('no_item')
+    daily.isLoadFailed = false
     // 「换一批」= 换队列（票 02 的语义 A，两个 tab 同一套）：本 tab 的重拉同样要同步队列
     await refillPlayQueueForBatch(songs, DAILY_30_QUEUE_ID)
   } catch (err: any) {
@@ -79,6 +82,7 @@ const loadDaily30 = async() => {
     daily.total = 0
     daily.hasMore = false
     daily.noItemLabel = errorLabel(err)
+    daily.isLoadFailed = true
   } finally {
     if (dailyKey === key) daily.isLoading = false
   }

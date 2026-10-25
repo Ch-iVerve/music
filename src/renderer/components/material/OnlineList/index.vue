@@ -135,6 +135,9 @@
         <transition enter-active-class="animated fadeIn" leave-active-class="animated fadeOut">
           <div v-show="noItem" :class="$style.noitem">
             <p v-text="noItem" />
+            <!-- 失败态的重试出口(2026-10-25 UI 审查 P1):文案由宿主给,空串=不渲染——
+                 noItem 同时是容器显隐开关,分不清「真空」与「失败」,失败与否只有宿主知道 -->
+            <button v-if="retryLabel" type="button" :class="$style.retryBtn" @click="$emit('retry')">{{ retryLabel }}</button>
           </div>
         </transition>
       </div>
@@ -196,6 +199,10 @@ export default {
       type: String,
       default: '',
     },
+    retryLabel: {
+      type: String,
+      default: '',
+    },
     checkApiSource: {
       type: Boolean,
       default: false,
@@ -226,7 +233,7 @@ export default {
       default: false,
     },
   },
-  emits: ['show-menu', 'play-list', 'togglePage', 'remove-music'],
+  emits: ['show-menu', 'play-list', 'togglePage', 'remove-music', 'retry'],
   setup(props, { emit }) {
     const actionButtonsVisible = appSetting['list.actionButtonsVisible']
     const rightClickSelectedIndex = ref(-1)
@@ -531,6 +538,25 @@ export default {
   p {
     font-size: 24px;
     color: var(--color-font-label);
+  }
+}
+
+.retryBtn {
+  margin-top: 14px;
+  padding: 6px 24px;
+  border: 1px solid var(--color-primary-alpha-900);
+  border-radius: 3px;
+  background-color: transparent;
+  color: var(--color-primary-font);
+  cursor: pointer;
+  transition: @transition-fast;
+  transition-property: background-color, color;
+
+  &:hover {
+    background-color: var(--color-button-background-hover);
+  }
+  &:active {
+    background-color: var(--color-button-background-active);
   }
 }
 

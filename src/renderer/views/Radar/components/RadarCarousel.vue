@@ -1,6 +1,10 @@
 <template>
   <div :class="$style.carousel" @wheel="handleWheel">
-    <p v-if="!list.length" :class="$style.empty" v-text="noItem" />
+    <div v-if="!list.length" :class="$style.empty">
+      <p v-text="noItem" />
+      <!-- 失败态给重试出口(2026-10-25 UI 审查 P1):refresh 与「换一批」同一出口,父级按 tab 分发重拉 -->
+      <button v-if="block.isLoadFailed" type="button" :class="$style.retryBtn" @click="$emit('refresh')">{{ $t('list__retry') }}</button>
+    </div>
 
     <template v-else>
       <!-- 舞台：中央主视觉 + 左右两翼；按住拖动左右滑，松手按位移/甩动速度换一张。
@@ -622,6 +626,30 @@ export default {
   text-align: center;
   font-size: 16px;
   color: var(--color-font-label);
+
+  p {
+    margin: 0;
+  }
+}
+
+// 失败态的重试键(2026-10-25 UI 审查 P1)
+.retryBtn {
+  margin-top: 14px;
+  padding: 6px 24px;
+  border: 1px solid var(--color-primary-alpha-900);
+  border-radius: 3px;
+  background-color: transparent;
+  color: var(--color-primary-font);
+  cursor: pointer;
+  transition: @transition-fast;
+  transition-property: background-color, color;
+
+  &:hover {
+    background-color: var(--color-button-background-hover);
+  }
+  &:active {
+    background-color: var(--color-button-background-active);
+  }
 }
 
 // 舞台：定高，主视觉居中；两翼超出部分裁掉

@@ -24,12 +24,15 @@ export interface DislikeSongsBlock {
   list: LX.Music.MusicInfoOnline[]
   noItemLabel: string
   isLoading: boolean
+  /** 整块失败的标记:空态「重试」键的判据(2026-10-25 UI 审查 P1)。 */
+  isLoadFailed: boolean
 }
 
 export const dislikedSongs = reactive<DislikeSongsBlock>({
   list: [],
   noItemLabel: '',
   isLoading: false,
+  isLoadFailed: false,
 })
 
 /** 老式对象 → 新式模型 + 去重 + markRaw（AGENTS §2.10）。 */
@@ -51,6 +54,7 @@ const toOnlineSongs = (list: any[]): LX.Music.MusicInfoOnline[] => {
  */
 export const loadDislikedSongs = async(): Promise<void> => {
   dislikedSongs.isLoading = true
+  dislikedSongs.isLoadFailed = false
   // 有数据时不要落 loading（会藏掉列表，见文件头第 2 条）；首次进来给 loading 文案
   if (!dislikedSongs.list.length) dislikedSongs.noItemLabel = t('list__loading')
   try {
@@ -62,6 +66,7 @@ export const loadDislikedSongs = async(): Promise<void> => {
     console.log('[favorites] disliked songs', err)
     dislikedSongs.list.splice(0, dislikedSongs.list.length)
     dislikedSongs.noItemLabel = err?.message === 'QQ 音乐未登录' ? t('user_center__need_login') : t('list__load_failed')
+    dislikedSongs.isLoadFailed = true
   } finally {
     dislikedSongs.isLoading = false
   }

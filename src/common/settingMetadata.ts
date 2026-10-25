@@ -723,7 +723,9 @@ export const SETTING_SECTIONS: readonly Section[] = [
         // §7.2 歌词偏移（调当前这首歌的 offset，入口在歌词右键菜单；附 B10）
         // 组内只有只读显示与说明，列在 `GROUPS_WITHOUT_ITEMS`
         id: 'data_lyric_offset',
-        i18nKey: 'lyric_menu__offset', // 复用（歌词右键菜单的「歌词偏移」）
+        // 不能复用 lyric_menu__offset：它带 {offset} 占位符，SettingNav 直接渲染会把
+        // 「{offset}」裸奔出来（2026-10-25 UI 审查 P2）；导航用独立 key，内容区继续用带值的
+        i18nKey: 'setting__data_lyric_offset',
         items: [],
       },
       {

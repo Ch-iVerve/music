@@ -5,6 +5,7 @@
         :class="$style.list"
         :list="dislikedSongs.list"
         :no-item="noItemLabel"
+        :retry-label="dislikedSongs.isLoadFailed ? t('list__retry') : ''"
         :page="1"
         :limit="dislikedSongs.list.length || 1"
         :total="dislikedSongs.list.length"
@@ -14,6 +15,7 @@
         :remove-label="$t('favorites__remove_dislike')"
         @play-list="handlePlay"
         @remove-music="handleRemove"
+        @retry="loadDislikedSongs"
       />
     </div>
   </div>
@@ -89,6 +91,7 @@ export default {
       DISLIKE_SONGS_QUEUE_ID,
       dislikedSongs,
       noItemLabel,
+      loadDislikedSongs,
       handlePlay,
       handleRemove,
     }

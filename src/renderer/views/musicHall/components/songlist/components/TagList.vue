@@ -12,7 +12,10 @@
       <div :class="$style.list" class="scroll">
         <div :class="$style.tag" @click="handleToggleTag('')">{{ $t('default') }}</div>
         <!-- 标签取不到时不能只留空白：复用既有的 list__load_failed（store 的歌单/榜单两处同款），不自造新 key -->
-        <div v-if="isLoadFailed" :class="$style.loadFailed">{{ $t('list__load_failed') }}</div>
+        <div v-if="isLoadFailed" :class="$style.loadFailed">
+          {{ $t('list__load_failed') }}
+          <button type="button" :class="$style.retryBtn" @click="loadTags(source)">{{ $t('list__retry') }}</button>
+        </div>
         <dl v-for="tagInfo in list" :key="tagInfo.name">
           <dt :class="$style.type">{{ tagInfo.name }}</dt>
           <dd v-for="tag in tagInfo.list" :key="tag.id" :class="$style.tag" @click="handleToggleTag(tag.id)">{{ tag.name }}</dd>
@@ -64,7 +67,8 @@ const handleToggleTag = (id) => {
   })
   handleHide()
 }
-watch(() => props.source, async(source) => {
+// 取数从 watch 体里提出来:失败态的「重试」键(2026-10-25 UI 审查 P1)与 watch 走同一条路
+const loadTags = async(source) => {
   if (!source) return
   // const source = (await getLeaderboardSetting()).source as LX.OnlineSource
   let tagInfo = tags[source]
@@ -89,6 +93,10 @@ watch(() => props.source, async(source) => {
   isLoadFailed.value = false
 
   list.splice(0, list.length, ...[{ name: window.i18n.t('songlist__tag_info_hot_tag'), list: [...tagInfo.hotTag] }, ...tagInfo.tags])
+}
+
+watch(() => props.source, source => {
+  void loadTags(source)
 }, {
   immediate: true,
 })
@@ -246,6 +254,22 @@ onBeforeUnmount(() => {
 .loadFailed {
   padding: 12px 5px 4px;
   color: var(--color-font-label);
+}
+.retryBtn {
+  display: block;
+  margin: 8px auto 10px;
+  padding: 4px 18px;
+  border: 1px solid var(--color-primary-alpha-900);
+  border-radius: 3px;
+  background-color: transparent;
+  color: var(--color-primary-font);
+  cursor: pointer;
+  transition: @transition-fast;
+  transition-property: background-color, color;
+
+  &:hover {
+    background-color: var(--color-button-background-hover);
+  }
 }
 
 .type {

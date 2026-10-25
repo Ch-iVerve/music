@@ -41,6 +41,8 @@ export interface RadarBlock {
   isLoading: boolean
   /** 翻页失败只提示、不清空已有内容。 */
   moreError: string
+  /** 整块失败(非翻页失败)的标记:空态「重试」键的判据(2026-10-25 UI 审查 P1)。 */
+  isLoadFailed: boolean
 }
 
 const radar = reactive<RadarBlock>({
@@ -54,6 +56,7 @@ const radar = reactive<RadarBlock>({
   hasMore: false,
   isLoading: false,
   moreError: '',
+  isLoadFailed: false,
 })
 
 let radarKey = ''
@@ -124,6 +127,7 @@ const loadRadar = async(page = 1, more = false) => {
   radarKey = key
   radar.isLoading = true
   radar.moreError = ''
+  radar.isLoadFailed = false
   if (!more) radar.noItemLabel = t('list__loading')
   try {
     const res = await music.tx.recommend.getRadarRecommend(page)
@@ -140,6 +144,7 @@ const loadRadar = async(page = 1, more = false) => {
     radar.page = page
     radar.hasMore = res?.hasMore === true
     radar.noItemLabel = radar.list.length ? '' : t('no_item')
+    radar.isLoadFailed = false
   } catch (err: any) {
     if (radarKey !== key) return
     console.log('[radar] loadRadar', err)
@@ -149,6 +154,7 @@ const loadRadar = async(page = 1, more = false) => {
       setSongs([])
       radar.hasMore = false
       radar.noItemLabel = errorLabel(err)
+      radar.isLoadFailed = true
     }
   } finally {
     radar.isLoading = false
