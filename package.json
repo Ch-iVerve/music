@@ -71,7 +71,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/climashscape/chiverve-music.git"
+    "url": "git+https://github.com/Ch-iVerve/music.git"
   },
   "keywords": [
     "music-player",
@@ -87,9 +87,9 @@
   },
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/climashscape/chiverve-music/issues"
+    "url": "https://github.com/Ch-iVerve/music/issues"
   },
-  "homepage": "https://github.com/climashscape/chiverve-music#readme",
+  "homepage": "https://github.com/Ch-iVerve/music#readme",
   "devDependencies": {
     "@tsconfig/recommended": "^1.0.13",
     "@types/better-sqlite3": "^7.6.13",
