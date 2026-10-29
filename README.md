@@ -25,7 +25,7 @@
 > - **版权**：代码沿用上游 Apache-2.0 许可证。**上游署名与协议全文完整保留**（`LICENSE` 与 `licenses/`；后者含上游补充条款：禁止违法使用、非商业性质、版权数据 24 小时内清除）。
 > - **第三方内容与署名**：随本仓库入库的第三方内容（better-sqlite3 预编译二进制、上游打过补丁的 fork 依赖、上游本体）的出处与许可，汇总在 [`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md)。
 > - **关于源码里的注释**：注释里会引用 `AGENTS.md`、`docs/...` 或工单编号——那是维护者的**内部设计笔记**（记录「为什么这么改」与真机实测结论），**不随本仓库公开**。代码本身是自洽的；跟着注释读到不存在的文件时按这条理解即可。
-> - **协作口径**：**欢迎报 Issues，也欢迎提 PR**——bug、构建失败、文档错漏、改进都收（[Issues](https://github.com/climashscape/chiverve-music/issues)）。但本仓库是单人业余维护的研究项目，**不承诺响应时限**；提 PR 请在描述里写清**你是怎么验证的**（下方「构建与自测」是这里通行的验证阶梯）。安全问题请走 [`SECURITY.md`](./SECURITY.md)。
+> - **协作口径**：**欢迎报 Issues，也欢迎提 PR**——bug、构建失败、文档错漏、改进都收（[Issues](https://github.com/Ch-iVerve/chiverve-music/issues)）。但本仓库是单人业余维护的研究项目，**不承诺响应时限**；提 PR 请在描述里写清**你是怎么验证的**（下方「构建与自测」是这里通行的验证阶梯）。安全问题请走 [`SECURITY.md`](./SECURITY.md)。
 
 ## 界面预览 / Screenshots
 
@@ -64,7 +64,7 @@
 ### 装依赖（两个必踩的坑）
 
 ```bash
-git clone https://github.com/climashscape/chiverve-music.git
+git clone https://github.com/Ch-iVerve/chiverve-music.git
 cd chiverve-music
 npm i
 ```
