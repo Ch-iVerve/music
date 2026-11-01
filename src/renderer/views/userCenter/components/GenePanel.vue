@@ -87,17 +87,21 @@
         </ul>
       </div>
 
-      <!-- AI 解读卡（`DeepseekInterpretation.Cards`）+ 它带的标签 -->
+      <!-- AI 解读卡（`DeepseekInterpretation.Cards`）+ 它带的标签：
+           标签与「只有标题没正文」的卡都收进标题行，有正文的卡单独成网格 -->
       <div v-if="musicGene.aiCards.length || musicGene.aiTags.length" :class="$style.block">
-        <h4 :class="$style.label">{{ $t('user_center__gene_ai_cards') }}</h4>
-        <ul :class="$style.aiCards">
-          <li v-for="(card, index) in musicGene.aiCards" :key="`ai__${index}`" :class="$style.aiCard">
+        <div :class="$style.aiHead">
+          <h4 :class="$style.label">{{ $t('user_center__gene_ai_cards') }}</h4>
+          <ul v-if="musicGene.aiTags.length || aiCardGroups.stubs.length" :class="$style.tags">
+            <li v-for="(tag, index) in musicGene.aiTags" :key="`ai_tag__${index}`" :class="$style.tag" v-text="tag" />
+            <li v-for="card in aiCardGroups.stubs" :key="card.key" :class="$style.tag" v-text="card.title" />
+          </ul>
+        </div>
+        <ul v-if="aiCardGroups.full.length" :class="$style.aiCards">
+          <li v-for="card in aiCardGroups.full" :key="card.key" :class="$style.aiCard">
             <h5 v-if="card.title" :class="$style.aiCardTitle" v-text="card.title" />
-            <p v-if="card.content" :class="$style.aiCardContent" v-text="card.content" />
+            <p :class="$style.aiCardContent" v-text="card.content" />
           </li>
-        </ul>
-        <ul v-if="musicGene.aiTags.length" :class="$style.tags">
-          <li v-for="(tag, index) in musicGene.aiTags" :key="`ai_tag__${index}`" :class="$style.tag" v-text="tag" />
         </ul>
       </div>
     </template>
@@ -264,6 +268,22 @@ export default {
       }))
     })
 
+    /**
+     * AI 解读卡拆两组：有正文的进卡片网格；只有标题没正文的（接口当周没给内容）降级成
+     * 标题行里的 chip——自适应高的布局里空壳卡拉不成卡片，收进标签行更整齐
+     * （与「空壳不渲染」同一取向）。key 沿用全量下标，分组前后保持稳定。
+     */
+    const aiCardGroups = computed(() => {
+      const full: Array<{ key: string, title: string, content: string }> = []
+      const stubs: Array<{ key: string, title: string }> = []
+      musicGene.aiCards.forEach((card, index) => {
+        const content = card.content.trim()
+        if (content) full.push({ key: `ai__${index}`, title: card.title, content })
+        else if (card.title) stubs.push({ key: `ai__${index}`, title: card.title })
+      })
+      return { full, stubs }
+    })
+
     return {
       labels,
       musicGene,
@@ -272,6 +292,7 @@ export default {
       itemSections,
       facts,
       reportRows,
+      aiCardGroups,
       jump,
       titleOf,
       isFailed,
@@ -488,14 +509,33 @@ export default {
   text-align: right;
 }
 
+// AI 解读：标题行（区块名 + 标签 + 无正文卡的标题）与正文卡片网格分离
+.aiHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+
+  .label {
+    margin-bottom: 0;
+  }
+  .tags {
+    margin-top: 0;
+  }
+}
+
 // AI 解读卡
 .aiCards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 10px;
+  // 正文长短不一时卡片按内容自适应高：留白留在网格行内，不撑在短卡内部
+  align-items: start;
 }
 .aiCard {
-  padding: 10px 12px;
+  min-width: 0;
+  padding: 12px 14px;
   border-radius: @radius-border;
   background-color: var(--color-button-background);
 }
