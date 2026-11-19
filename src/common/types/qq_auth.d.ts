@@ -28,7 +28,7 @@ declare namespace LX {
        * **为什么存它**：关注 / 取消关注歌手只有老式 h5
        * （`c.y.qq.com/rsc/fcgi-bin/fcg_order_singer_add.fcg` / `_del.fcg`）这一条写通道，
        * 那条通道用 `g_tk = hash33(p_skey, 5381)` 做 CSRF。不存的话，每次重启后第一次关注都要重新扫码。
-       * 决策与代价见 `docs/adr/0010-persist-web-session-for-singer-follow.md`。
+       * 决策：持久化网页会话 p_skey（明文凭证，0600，单用户机器）。
        *
        * ⚠️ **生命周期与 `musickey` 不同**：**不能**用 musickey 的刷新链去续（刷新接口认 `refresh_key`），
        * 过期后只能请用户重新扫码；`refresh` 必须原样保留它，别把它当成可刷新的字段。

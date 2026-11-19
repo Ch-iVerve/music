@@ -4,8 +4,8 @@ import dislike, { parseFeedbackResult } from './dislike'
 /**
  * 云端「不喜欢」列表的钉子（数据类功能票 02）。
  *
- * 端点全部实测过（2026-09-25 探针，记录见 `scripts/verify/artifacts/2026-09-25-qq-probe/NOTES.md` §2
- * 与 `docs/agents/qq-music-native.md` §5.11）。这个文件钉住**四件本地能证的事**：
+ * 端点全部实测过（2026-09-25 探针，记录见 `scripts/verify/artifacts/2026-09-25-qq-probe/NOTES.md` §2）。
+ * 这个文件钉住**四件本地能证的事**：
  *
  *   1. **判据是 `code==0` 且 `data.Retcode==0`（大写 R）**——不是歌单写那套小写 `retCode`。
  *      两种拼法的响应都喂一遍：小写那份必须判成**失败**（缺字段算缺失，不能读成 0）。

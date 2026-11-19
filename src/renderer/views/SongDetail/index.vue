@@ -197,8 +197,8 @@ export default {
 
     const mid = computed(() => (route.query.mid as string) ?? '')
     // 路由页没有 keep-alive，但 `/songDetail?mid=A` → `?mid=B` 是**同组件复用**（setup 不会再跑）——
-    // 只写 `if (mid.value) void load(mid.value)` 会出现「URL 换了、内容还是上一首」（2026-09-25 真机验收抓到，
-    // 见 `.scratch/verify-2026-09-25/issues/01`）。改成 watch 驱动（与 `views/Singer/index.vue` 同一写法），
+    // 只写 `if (mid.value) void load(mid.value)` 会出现「URL 换了、内容还是上一首」（2026-09-25 真机验收抓到）。
+    // 改成 watch 驱动（与 `views/Singer/index.vue` 同一写法），
     // 首次进入与换 mid 两种情况都覆盖。
     watch(() => route.query.mid, (value) => {
       if (value) void load(value as string)
@@ -341,7 +341,7 @@ export default {
 // 原来封面要等 36（键）+ 14（padding）+ 1（分隔线）+ 18（间距）= 69px 才出现，这就是用户报的
 // 「上方有空白」（920 档实测 coverTop 147 → 78）。
 // 分隔线留在 `.song` 下方，三页「封面块 + 分隔线 + 正文」的语法与歌手页/专辑页保持一致（工单 24 的口径）。
-// 量测对照见表 .scratch/ui-polish-3/issues/03-toolbar-actions-slot.md
+// 量测对照以真机 920 档实测为准
 
 .error {
   padding: 30px 0;

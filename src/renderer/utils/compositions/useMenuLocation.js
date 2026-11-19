@@ -64,7 +64,7 @@ export default ({ visible, location, onHide }) => {
     onHide()
   }
 
-  // Esc 收起菜单(2026-10-25 UI 审查 P1;自维护补丁,上游没有——分歧记录见 docs/adr/0014)。
+  // Esc 收起菜单(2026-10-25 UI 审查 P1;自维护补丁,上游没有)。
   // 与点空白收起同一出口:onHide 由调用方落状态,不直接动 menuStyles。
   const handleDocumentKeydown = (event) => {
     if (event.key != 'Escape' || !show) return

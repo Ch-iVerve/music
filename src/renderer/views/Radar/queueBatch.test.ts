@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { keepPlayingSongInQueue } from './queueBatch'
 
 /**
- * 钉住的契约：**「换一批」后当前这首必须还在队列里**（`.scratch/ui-polish-followups/issues/02` 的语义 A）。
+ * 钉住的契约：**「换一批」后当前这首必须还在队列里**（语义 A）。
  * 期望值来自那条备注：当前曲不在新一批里时放队首——否则 `useWatchList` 会把
  * `playIndex < 0` 判成「歌曲被移除」并 `playNext(true)`，正在播的这首会被跳掉。
  */

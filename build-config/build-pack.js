@@ -74,7 +74,7 @@ const winOptions = {
   // 本仓库本来就不需要它：`deps.copyLib()` / `build-config/lib/` 里已备好各平台的
   // better-sqlite3 预编译件（含 `better_sqlite3_win32-x64.node`），打包前换进去即可。
   // ⚠️ 所以打 Windows 包**必须在打包前把 win32 的原生件换进 node_modules**（见
-  // `docs/agents/build-and-pack.md` §7.3 的 Windows 一节）；关掉 rebuild 不会替你换。
+  // 本机归档的构建记录）；关掉 rebuild 不会替你换。
   npmRebuild: false,
   win: {
     icon: './resources/icons/icon.ico',

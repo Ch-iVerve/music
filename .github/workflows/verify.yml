@@ -12,7 +12,7 @@
 # 为什么这里有 typecheck：构建期只有 webpack 的 ts-loader 会查类型，而 CI **不跑 build**
 # （只为校验、不产包，见上面 ADR-0008 那段）——于是 TS 类型错误在 CI 里完全没有门禁，能一路进
 # main。npm run typecheck 用三个构建目标的 tsconfig 各跑一遍 tsc --noEmit，补上这条缝。
-# 口径由全历史自审查（2026-09-26）定，落点约定见 docs/agents/self-review.md（本机-only）。
+# 口径由全历史自审查（2026-09-26）定。
 #
 # runner 与 action 版本口径（2026-10-17 定）：
 # - `runs-on` 钉到具名镜像，不用 `ubuntu-latest`——后者自 2026-10-19 起开始迁往 Ubuntu 26，

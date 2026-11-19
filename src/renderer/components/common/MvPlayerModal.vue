@@ -44,8 +44,8 @@
         <p v-if="desc" :class="$style.desc">{{ desc }}</p>
         <!--
           失败提示按 `MediaError.code` 粗分两类（`3/4` 与其它），但**文案不能只写「编码」**：
-          实测 403 的流在 Chromium 里同样是 `4`（2026-09-26 的「MV 播不了」就是地址不可用被判成编码问题，
-          见 docs/agents/pitfalls.md 坑 22），所以 `mv__codec_unsupported` 那条文案同时覆盖两种成因、
+          实测 403 的流在 Chromium 里同样是 `4`（2026-09-26 的「MV 播不了」就是地址不可用被判成编码问题），
+          所以 `mv__codec_unsupported` 那条文案同时覆盖两种成因、
           并把「重新获取」与「系统播放器」两个动作都给出来。分型本身只用来决定「要不要劝用户重取」。
         -->
         <p v-if="playError === 'codec'" :class="$style.tip">{{ $t('mv__codec_unsupported') }}</p>

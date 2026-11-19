@@ -5,7 +5,7 @@ import { createSong } from './utils/song'
  * 云端「不喜欢」列表（QQ 账号侧，数据类功能票 02）。
  *
  * 端点全部实测过（2026-09-25 探针），记录在
- * `scripts/verify/artifacts/2026-09-25-qq-probe/NOTES.md` §2 与 `docs/agents/qq-music-native.md` §5.11。
+ * `scripts/verify/artifacts/2026-09-25-qq-probe/NOTES.md` §2。
  * 改这个文件前先读这六条，每一条都有过代价：
  *
  *   1. 网关是 `music.feedback.FeedbackBlack`，**WEB comm 就够**（不需要签名载体：参考库把它标了

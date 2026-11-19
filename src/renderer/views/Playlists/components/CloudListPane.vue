@@ -70,8 +70,8 @@ export default {
 
     /**
      * 取歌用的歌单标识 —— **必须是卡片的 tid**（`createdLists` 的 `id`）。
-     * 读歌走 `CgiGetDiss` 的 `disstid`，给它 dirId 服务端恒返回 0 首（实测，见
-     * `docs/agents/qq-music-native.md`「读 tid、写 dirId」）；写歌才用 dirId。
+     * 读歌走 `CgiGetDiss` 的 `disstid`，给它 dirId 服务端恒返回 0 首（实测）；
+     * 写歌才用 dirId。
      * 卡片没到就什么都不请求——**不要拿 dirId 兜底**，那正是「刷新把列表清空」的成因。
      */
     const listTid = computed(() => String(card.value?.id ?? ''))

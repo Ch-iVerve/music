@@ -5,7 +5,7 @@ import { focusWindow } from '@renderer/utils/ipc'
 
 import { dataVerify } from './utils'
 
-// 深链「打开页面」：chiverve-music://page/open?singer=<mid> 等（格式定义见 docs/agents/interface.md §5.3）
+// 深链「打开页面」：chiverve-music://page/open?singer=<mid> 等（自定义协议，四个具名参数各对应一个目标页）
 //
 // 用语义化具名参数而不是「路由名 + 参数透传」：四个参数各对应一个目标页，白名单校验，
 // 拼错时报错而不是静默失效；前端路由改名也不会让老链接静默跳空页。

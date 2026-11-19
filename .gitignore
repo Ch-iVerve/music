@@ -77,10 +77,7 @@ src/**/*-internal.js
 # ZCode 会话工具状态（plan 产物与 spec 重复，不入库）
 .zcode/plans/
 
-# 本地工单与探索笔记：只留本机，不入公开历史（2026-09-24 用户定；历史已用 git filter 重写去掉）
-.scratch/
-
-# impeccable 审查快照（impeccable skill 的落盘产物，同 .scratch/ 口径只留本机）
+# impeccable 审查快照（impeccable skill 的落盘产物，只留本机）
 .impeccable/
 
 # 验收脚本与留档产物：放**仓库目录内**（跟着仓库走，不像 /tmp 那样会丢），但**不入公开树**
@@ -96,12 +93,9 @@ Desktop.ini
 *~
 
 # 内部文档与 agent 工作区：**只留本机，不进公开树**（2026-09-24 用户定：本仓库只公开源码 + README + 许可）。
-# 这几个路径仍留在工作区（本地工作流与 agent 照常读它们），只是不入库；
-# 历史里的这些路径会在首次公开前用 git filter-repo 一并抹掉（见 .scratch/release-prep/issues/09）。
+# AGENTS.md 只留本机；AOCI 认知索引（aoci*.txt、.aoci/）按工具要求入库，随代码一起版本化。
 /AGENTS.md
-/CONTEXT.md
-/docs/
-/.agents/
+AGENTS.md.backup.*
 /.zcode/
 # ZCode 的本地搜索忽略规则（由「从 .gitignore 同步」生成，内容含上面这些不入库路径），同属本机工具状态
 /.zcodeignore

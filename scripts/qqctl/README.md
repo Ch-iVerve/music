@@ -45,7 +45,7 @@ node scripts/qqctl/bin.mjs playlist songs 9782416691
 
 ## 维护约束（改之前读）
 
-- **端点形状照搬 `src/renderer/utils/musicSdk/tx/`**（request.js 的 comm/回退链、crypto.js 的 zzc 签名、songList.js 的写侧与 readWriteResult、user.js 的读侧）——那边实测记录在 `docs/agents/qq-music-native.md`，那边改了这边要跟；本 CLI **只沉淀真机验证过的端点**，没测过的不加。
+- **端点形状照搬 `src/renderer/utils/musicSdk/tx/`**（request.js 的 comm/回退链、crypto.js 的 zzc 签名、songList.js 的写侧与 readWriteResult、user.js 的读侧）——那边改了这边要跟；本 CLI **只沉淀真机验证过的端点**，没测过的不加。
 - **comm 档案分档**：dirId=201（我喜欢）写侧必须安卓档案，自建歌单用 WEB 档案（工单 09 的 A/B，`playlist.mjs` 有注）。
 - **凭证纪律**（`scripts/verify/README.md` 坑 4）：凭证只在内存；任何输出/日志不含凭证值，只许字段名与脱敏值。`credential` 命令是范例。
 - **行为不对 QQ 侧做对抗性设计**：低频（默认节流 400ms）、不并发、写失败不自动重试。

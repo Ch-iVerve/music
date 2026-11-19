@@ -30,7 +30,7 @@ import LocalImportProgressModal from '@renderer/components/common/LocalImportPro
  *
  * tab 文案（2026-10-13 用户口径）：`playlists__tab_local` 从「库」改成「本地」——票 04 起
  * 库（素材总集）已升为独立一级入口「本地音乐」，本 tab 只剩自建列表，继续叫「库」会与
- * 本地媒体库撞词（`CONTEXT.md` 的 _Avoid_ 正是这一条）。
+ * 本地媒体库撞词（术语表把「库」列为本地媒体库场景的避免词）。
  *
  * 这个文件只是壳：Tab 切换与 query 同步；两个面板在 components/ 里，各自取数。
  *

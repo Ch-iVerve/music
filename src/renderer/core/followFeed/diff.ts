@@ -4,8 +4,7 @@ import { toNewMusicInfo } from '@common/utils/tools'
  * 关注动态的**纯增量计算**：给一位歌手的「本轮抓到的歌」与「他上次的基线」，算出新条目与新基线。
  *
  * 这里没有网络、没有数据库、没有 `Date.now()`——编排在 `check.ts`，存储在主进程的
- * `follow_feed` 域。分开的理由只有一个：判据是这件事里最容易错、也最需要被钉住的部分
- * （接缝划分见 `.scratch/follow-feed/spec.md` 的 Testing Decisions）。
+ * `follow_feed` 域。分开的理由只有一个：判据是这件事里最容易错、也最需要被钉住的部分。
  */
 
 /** 数据层（`tx/singer.getLatestSongs`）交来的形状：老式歌曲对象 + 发布时间（`time_public`，可能为空串） */

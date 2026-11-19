@@ -703,7 +703,7 @@ describe('v5 → v6：补本地媒体库表', () => {
 })
 
 /**
- * v6 → v7（集合概念统一，ADR-0013 / spec `.scratch/functional-logic-consolidation/spec.md`）：
+ * v6 → v7（集合概念统一）：
  * love 迁 legacy、default 清残余、旧式条目清除、已完成下载清行、`local_library_track` 重建加 origin。
  *
  * 夹具形态 = 用户手上的 v6 库：`local_library_track` 是**旧定义**（无 origin 列，v6 时代原文）。

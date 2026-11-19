@@ -41,7 +41,7 @@ export const maskMusicid = musicid => {
 }
 
 /**
- * 本地过期判定：`musickeyCreateTime + keyExpiresIn`（docs/agents/qq-music-native.md §4.4），
+ * 本地过期判定：`musickeyCreateTime + keyExpiresIn`，
  * 缺字段时回退落盘的 `expiredAt`；两者都缺则 unknown。过期只能由应用刷新（refresh 走应用侧调度），
  * CLI 判出过期应提示先启动一次应用。
  */

@@ -38,7 +38,7 @@ module.exports = async(context) => {
   // 在 Linux 上打 **Windows** 包时，上面的 copyLib 会按**本机**平台把 better_sqlite3 覆盖成 ELF
   // （`replaceSqliteLib` 里写的是 `process.platform`），打进 win 包里上机必崩。
   // 这里按**目标平台**再覆盖一次——仓库已备好各平台的预编译件（`build-config/lib/`）。
-  // 打法与其余坑见 docs/agents/build-and-pack.md §7.3 的 Windows 一节。
+  // Windows 打包的实测坑见本机归档的构建记录（不随仓库公开）。
   if (context.electronPlatformName === 'win32') {
     const fsp = require('node:fs/promises')
     const nodePath = require('node:path')

@@ -14,7 +14,7 @@ material-modal(:show="helpVisible" bg-close teleport="#view" max-width="60%" @cl
 import { onBeforeUnmount } from '@common/utils/vueTools'
 import { helpLabel, helpText, helpVisible, closeSettingHelp } from './useSettingHelp'
 
-// Esc 关闭由 material-modal 统一处理(2026-10-25 起,原来自建的 document 监听已删——见 docs/adr/0014)。
+// Esc 关闭由 material-modal 统一处理(2026-10-25 起,原来自建的 document 监听已删)。
 export default {
   name: 'SettingHelpModal',
   setup() {

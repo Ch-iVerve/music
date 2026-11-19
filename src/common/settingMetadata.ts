@@ -7,9 +7,8 @@
  * - 三级结构 `Section → Group → Item`：数组顺序即页面顺序（左栏一级分组 `navGroup` × 节名），
  *   `Group.id` 直接当节内锚点的 DOM id，项的标识用 `itemId()`（key 项 = `Item.key`，非 key 项 =
  *   `Item.id`，两种 item 见 `Item` 的注释）。
- * - 节 / 分组的划分与每一项的归属，逐项照
- *   `.scratch/settings-refactor/notes/04-item-classification.md`（134 个 key + 140 个非 key 控件
- *   逐项定去向）落地，**不要凭观感重新归类**；改名 / 拆合并的处置在该表的附 A / 附 B。
+ * - 节 / 分组的划分与每一项的归属已按 134 个 key + 140 个非 key 控件逐项定过去向，
+ *   **不要凭观感重新归类**；改名 / 拆合并的处置以代码与提交记录为准。
  * - `i18nKey` 的写法：能复用现有文案 key 的就复用（值由票 11 按附 A 改），新位置没有对应文案的
  *   用 `setting__*` 新 key（票 11 补四语）。每处「复用 / 新增」在注释里点名。
  * - 对账用例 `settingMetadata.test.ts` import 本文件，断言 `defaultSetting` 去掉 `version` 后

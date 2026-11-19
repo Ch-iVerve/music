@@ -6,7 +6,7 @@
  * 与 `dislike_list` 的先例一致：通道载荷的类型在 `common`，worker 内部的行类型才在 `DBService`——
  * 这里两者形状相同，所以不再在 `DBService` 里抄一份（多一份就多一处会漂移的定义）。
  *
- * 术语见 `CONTEXT.md`：关注动态 / 动态条目 / 基线。
+ * 术语：关注动态 / 动态条目 / 基线。
  */
 declare namespace LX {
   namespace FollowFeed {
@@ -18,7 +18,7 @@ declare namespace LX {
      *
      * `latestSongId` 是**判新的唯一标记**：下一轮从列表头部往下走，撞到它就停，撞到之前的算增量。
      * 为什么不是「比 `latestSongTime` 更新」——实测 `order: 0` 并非普遍按发布时间倒序
-     * （见 `renderer/core/followFeed/diff.ts` 的注释与 `.scratch/follow-feed/spec.md`）。
+     * （见 `renderer/core/followFeed/diff.ts` 的注释）。
      *
      * `null` = 还没取到过（此前没有任何作品的歌手就是这样；他发出第一首歌时会被正常报出来，
      * 因为「首次静默」判的是**有没有这一行**，不是标记是不是 null）。

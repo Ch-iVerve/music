@@ -4,7 +4,7 @@ import { tempListMeta } from '@renderer/store/list/state'
 import { playInfo, playMusicInfo } from '@renderer/store/player/state'
 
 /**
- * 雷达页「换一批」与播放队列的同步（`.scratch/ui-polish-followups/issues/02` 的语义 A：
+ * 雷达页「换一批」与播放队列的同步（语义 A：
  * **换一批 = 换队列**，2026-09-23 用户拍板）。
  *
  * 心智模型：屏幕上是啥，队列就是啥。换完之后「下一首」必须走新一屏，而不是上一批。

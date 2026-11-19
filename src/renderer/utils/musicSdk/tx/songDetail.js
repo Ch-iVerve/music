@@ -5,7 +5,7 @@ import { createSong } from './utils/song'
  * 歌曲详情与关联能力（工单 09）。
  *
  * 五个端点在 2026-09-23 用本仓的请求形状（comm + loginUin 字符串）逐个实测 `code = 0`，
- * 字段名照响应抄（不猜），记录在 `docs/agents/qq-music-native.md` §5.10：
+ * 字段名照响应抄（不猜），以下为实测记录：
  *
  *   1. 歌曲详情 `music.pf_song_detail_svr/get_song_detail_yqq`：`song_mid` 与 `song_id` 都收
  *   2. 相似歌曲 `music.recommend.TrackRelationServer/GetSimilarSongs`：`{ songid, songtype }` → `vecSong[].track`（标准歌曲对象）

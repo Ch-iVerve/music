@@ -14,7 +14,7 @@ import { followFeedState } from './state'
  * 关注动态的状态变更（渲染侧）。
  *
  * 这里只做「读库 → 落进 state」与「标已读」，**不含检测**：一轮检查怎么跑、哪些算新，
- * 在 `core/followFeed/` 里（接缝划分见 `.scratch/follow-feed/spec.md`）。
+ * 在 `core/followFeed/` 里。
  */
 
 /**

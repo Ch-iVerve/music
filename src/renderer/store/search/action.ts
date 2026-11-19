@@ -23,7 +23,7 @@ const saveSearchHistoryListThrottle = throttle((list: LX.List.SearchHistoryList)
 /**
  * 拉历史词。失败**不抛**（2026-09-26 审查）：历史词是非关键路径，且调用点全是
  * `void getHistoryList()`——抛出去会变成未处理 rejection（dev 下 webpack-dev-server
- * 据此弹全屏浮层，吞掉真实鼠标输入，同类已修过一例见 .scratch/verify-2026-09-26/issues/03b）。
+ * 据此弹全屏浮层，吞掉真实鼠标输入，同类问题已修过一例）。
  * 读不到就当没有历史，下次再进来还会重试（失败不置 `isInitedSearchHistory`）。
  */
 export const getHistoryList = async() => {

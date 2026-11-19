@@ -11,7 +11,7 @@ import { cloudListSongs, createdLists } from '@renderer/store/user/state'
  * 按钮当时把 **dirId** 当 tid 传了（`createdLists` 卡片上的 `id` 才是 tid）。
  *
  * 这个用例走真链路（组件点击 → store action → SDK 调用 → 状态写回），只把最外层的 SDK 换成桩，
- * 桩按服务端的实测行为（`docs/agents/qq-music-native.md` §「读 tid、写 dirId」）：
+ * 桩按服务端的实测行为（读 tid、写 dirId）：
  * `disstid` 传 dirId 时服务端返回 0 首歌，实现层把它当「读不到」抛错。
  *
  * 2026-09-26 追加：「加载更多」**失败**时的展示（failure 落在 store 的 noItemLabel，

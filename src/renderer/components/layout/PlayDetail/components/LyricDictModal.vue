@@ -60,7 +60,7 @@ export default {
   },
   emits: ['update:show'],
   setup(props, { emit }) {
-    // Esc 关闭由 material-modal 统一处理(2026-10-25 起,自建的 document 监听已删——见 docs/adr/0014);
+    // Esc 关闭由 material-modal 统一处理(2026-10-25 起,自建的 document 监听已删);
     // 本组件的 @close 由 material-modal 的 Esc / ✕ 都会触发,统一走 update:show 收口。
     const handleClose = () => {
       emit('update:show', false)

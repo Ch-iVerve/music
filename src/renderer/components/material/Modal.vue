@@ -181,7 +181,7 @@ export default {
     this.removeClass()
   },
   methods: {
-    // Esc 关弹窗(2026-10-25 UI 审查 P1;自维护补丁,上游没有——分歧记录见 docs/adr/0014):
+    // Esc 关弹窗(2026-10-25 UI 审查 P1;自维护补丁,上游没有):
     // 事件必须挂 document,弹窗是 teleport 走的,挂自家根节点收不到(SettingHelpModal 的旧实现实证过)。
     // 嵌套弹窗只关栈顶:modalCount 是模块级嵌套计数,本实例开着但不是最后开的就不响应。
     handleKeyDown(event) {

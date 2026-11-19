@@ -186,8 +186,8 @@ const toFeedSong = (raw) => {
  *
  * 现代网关没有关注写方法（50 方法 × 22 模块枚举全灭，又用本机 fork 的全部 refs 复核过），
  * 所以只能走 `c.y.qq.com` 的这两个老 fcgi：cookie 里要**网页会话**（`uin` + `p_skey`），
- * CSRF 用 `g_tk = hash33(p_skey, 5381)`。决策与代价见
- * `docs/adr/0010-persist-web-session-for-singer-follow.md`；端点细节见 `qq-music-native.md` §5.11。
+ * CSRF 用 `g_tk = hash33(p_skey, 5381)`。决策：持久化网页会话 p_skey（明文凭证，0600）。
+ * 端点细节以真机实测为准。
  */
 const H5_FOLLOW_ADD = 'https://c.y.qq.com/rsc/fcgi-bin/fcg_order_singer_add.fcg'
 const H5_FOLLOW_DEL = 'https://c.y.qq.com/rsc/fcgi-bin/fcg_order_singer_del.fcg'
@@ -513,7 +513,7 @@ export default {
    *
    * 与 `getSongList` 的三处不同，都是刻意的：
    *   1. `order: 0`（实测大体是发布时间倒序）而不是 `order: 1`（热度序）——后者对「有没有新东西」
-   *      毫无意义；抽样复核的结论与反例形态见 `.scratch/follow-feed/spec.md` 的 Further Notes；
+   *      毫无意义；抽样复核的结论与反例形态以真机实测为准；
    *   2. 一个请求塞多位歌手（每人一个 `req_N` 键——`createMusicuFetch` 的 body 顶层天然支持多模块，
    *      `getInfo` 就是一次发三个），否则 604 位歌手要打 604 个请求；
    *   3. 返回 `publishTime`（`time_public`）——`createSong` 不带这个字段，理由见 `toFeedSong`。

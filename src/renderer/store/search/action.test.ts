@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
  * 真机症状：搜索历史走 IPC 读写，读接口挂掉时 `getHistoryList()` 的 rejection 直接冒到顶层——
  * 三个调用点（`views/Search/components/BlankView.vue` 的 `void getHistoryList()`、
  * 两个 `useList` 的 `void addHistoryWord(text)`）谁都没接 → dev 下 webpack-dev-server 弹全屏
- * 错误浮层，**吞掉真实鼠标输入**（同类已修过一例，见 `.scratch/verify-2026-09-26/issues/03b`）。
+ * 错误浮层，**吞掉真实鼠标输入**（同类问题已修过一例）。
  *
  * 契约（照同文件 `hotSearch.catch` 的口径）：历史词是非关键路径，读不到就当没有历史、
  * 写不下就只记日志，**一律不抛给调用方**。这里钉住这两个行为。

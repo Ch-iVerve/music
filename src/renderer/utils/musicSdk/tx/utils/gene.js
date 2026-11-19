@@ -12,8 +12,7 @@
  *     `MainDescription.Description`、`ListeningReport.Report` 是个 `list[dict]`。
  *   - 只有票面转述路径、**内层键名本轮未复验**：`Personality`、`StatusIndex.Base`、`Ages[].Base`、
  *     `BPM.MaxScore/MinScore`、`Grooving.Level`、`TimePreference`、`CharacterColor`、
- *     `DeepseekInterpretation.Cards[].Title/Content`、`ListeningReport.Report[].Month/Num`
- *     （见 `.scratch/ui-polish-2/issues/10-user-center-gene.md` 的「事实」段）。
+ *     `DeepseekInterpretation.Cards[].Title/Content`、`ListeningReport.Report[].Month/Num`。
  *     原因是复验要用真实凭证打线上接口，本轮不做（见工单纪律）。
  *
  * 因此这里的分工是：**已知路径照实取；未知的内层键名走候选键依次尝试**（`pickText`/`pickNumber`），

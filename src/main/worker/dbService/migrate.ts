@@ -123,7 +123,7 @@ const migrateV5 = (db: Database.Database) => {
 }
 
 /**
- * v6 → v7：集合概念统一（ADR-0013 / spec `.scratch/functional-logic-consolidation/spec.md`）。
+ * v6 → v7：集合概念统一。
  *
  * 四件事 + 一列，口径「不留历史包袱、不考虑跨版本兼容」（用户 2026-10-12 拍板）：
  * 1. **love 迁移**：有歌时把「我的收藏」迁成一个自建列表「我的收藏（历史）」

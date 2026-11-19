@@ -259,7 +259,7 @@ describe('views/SongDetail/index.vue 的「打开播放详情页」入口', () =
   it('同路由换 mid 会重新取数（否则 URL 换了、页面还是上一首）', async() => {
     // 2026-09-25 真机验收抓到的 bug：`/songDetail?mid=A` → `?mid=B` 是同组件复用，
     // setup 只跑一次，原来的 `if (mid.value) void load(mid.value)` 不会重取数。
-    // 期望值来自「URL 与内容必须一致」这条用户可见契约（票 .scratch/verify-2026-09-25/issues/01）。
+    // 期望值来自「URL 与内容必须一致」这条用户可见契约。
     await mountDetailPage()
     expect(mocks.getDetail).toHaveBeenCalledWith('abc')
 
